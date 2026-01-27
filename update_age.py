@@ -245,6 +245,105 @@ def get_config_from_notion(token, page_id):
                 
     return config
 
+def ensure_settings_block(token, page_id):
+    """
+    페이지에 설정값을 입력할 수 있는 Toggle 블록이 있는지 확인하고, 없으면 생성합니다.
+    """
+    url = f"https://api.notion.com/v1/blocks/{page_id}/children"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json"
+    }
+    
+    # 1. 기존 블록 확인
+    get_response = requests.get(url, headers=headers)
+    if get_response.status_code == 200:
+        data = get_response.json()
+        for block in data.get("results", []):
+            if block.get("type") == "toggle":
+                rich_text = block.get("toggle", {}).get("rich_text", [])
+                text_content = "".join([t.get("text", {}).get("content", "") for t in rich_text])
+                if "설정" in text_content:
+                    print("기존 설정 블록을 찾았습니다.")
+                    return
+
+    # 2. 없으면 생성
+    print("설정 블록이 없습니다. 새로 생성합니다...")
+    payload = {
+        "children": [
+            {
+                "object": "block",
+                "type": "toggle",
+                "toggle": {
+                    "rich_text": [
+                        {
+                            "type": "text",
+                            "text": {
+                                "content": "⚙️ 설정 (이곳을 클릭하여 이름과 생일을 수정하세요)"
+                            }
+                        }
+                    ]
+                },
+                "children": [
+                    {
+                        "object": "block",
+                        "type": "paragraph",
+                        "paragraph": {
+                            "rich_text": [
+                                {
+                                    "type": "text",
+                                    "text": {
+                                        # 기본값은 config.json이나 코드의 기본값을 따름
+                                        "content": "이름: 우유" 
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "object": "block",
+                        "type": "paragraph",
+                        "paragraph": {
+                            "rich_text": [
+                                {
+                                    "type": "text",
+                                    "text": {
+                                        "content": "생일: 2013-09-30"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "object": "block",
+                        "type": "callout",
+                        "callout": {
+                            "rich_text": [
+                                {
+                                    "type": "text",
+                                    "text": {
+                                        "content": "위 내용을 수정하면 다음 업데이트 시 반영됩니다."
+                                    }
+                                }
+                            ],
+                            "icon": {
+                                "emoji": "💡"
+                            }
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+    
+    post_response = requests.patch(url, headers=headers, json=payload)
+    if post_response.status_code == 200:
+        print("설정 블록을 성공적으로 생성했습니다.")
+    else:
+        print(f"설정 블록 생성 실패: {post_response.status_code}")
+        print(post_response.text)
+
 def main():
     # 노션 설정 확인 (환경변수)
     token = os.environ.get("NOTION_TOKEN")
@@ -259,10 +358,15 @@ def main():
     config = load_config()
     
     # 2. Notion 페이지에서 설정 로드 (덮어쓰기)
+    # 먼저 설정 블록이 있는지 확인하고 없으면 만듦 (사용자 편의)
+    ensure_settings_block(token, page_id)
+    
     try:
         print("Notion 페이지에서 설정을 찾고 있습니다...")
         notion_config = get_config_from_notion(token, page_id)
-        config.update(notion_config)
+        if notion_config:
+            print("Notion에서 새로운 설정을 발견하여 적용합니다.")
+            config.update(notion_config)
     except Exception as e:
         print(f"Notion 설정 읽기 중 오류: {e}")
 
