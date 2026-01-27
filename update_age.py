@@ -25,12 +25,9 @@ def calculate_age(birth_date_str):
     if days < 0:
         months -= 1
         # 이전 달의 날짜 수 가져오기
-        # 간단하게 30일로 가정하지 않고, datetime으로 역산
-        # (현재 달의 1일 - 1일).day = 이전 달의 마지막 날
         first_day_of_this_month = today.replace(day=1)
-        last_month_last_day = (first_day_of_this_month - birth_date.resolution).day
-        # 정확한 일수 계산을 위해서는 dateutil이 좋지만, 여기서는 간소화
-        # 간단히 이전 달의 말일 + 현재 일 - 생일 일
+        # last_month_last_day = (first_day_of_this_month - birth_date.resolution).day # resolution removed
+        
         import calendar
         prev_month_year = today.year if today.month > 1 else today.year - 1
         prev_month = today.month - 1 if today.month > 1 else 12
@@ -44,11 +41,39 @@ def calculate_age(birth_date_str):
     # 일차 계산 (태어난 날부터 며칠째인지)
     total_days = (today - birth_date).days + 1
     
-    return f"{years}년 {months}개월 {days}일차 (D+{total_days})"
+    return years, months, days, total_days
 
-def update_notion_block(token, block_id, content):
+def get_rich_text_objects(years, months, days, total_days):
+    """
+    숫자를 mathtt 폰트(수식)로 변환하여 rich_text 객체 리스트를 생성합니다.
+    """
+    def number_to_equation(num):
+        return {
+            "type": "equation",
+            "equation": {
+                "expression": f"\\mathtt{{{num}}}"
+            }
+        }
+
+    def text_object(content):
+        return {
+            "type": "text",
+            "text": {
+                "content": content
+            }
+        }
+
+    return [
+        number_to_equation(years), text_object("년 "),
+        number_to_equation(months), text_object("개월 "),
+        number_to_equation(days), text_object("일차 (D+"),
+        number_to_equation(total_days), text_object(")")
+    ]
+
+def update_notion_block(token, block_id, rich_text_list):
     """
     Notion API를 사용하여 블록의 내용을 업데이트합니다.
+    rich_text_list: get_rich_text_objects()에서 반환된 리스트
     """
     url = f"https://api.notion.com/v1/blocks/{block_id}"
     
@@ -59,17 +84,9 @@ def update_notion_block(token, block_id, content):
     }
     
     # 콜아웃 블록 업데이트 페이로드
-    # 주의: 텍스트 내용만 업데이트하려면 구조를 맞춰야 함
     payload = {
         "callout": {
-            "rich_text": [
-                {
-                    "type": "text",
-                    "text": {
-                        "content": content
-                    }
-                }
-            ]
+            "rich_text": rich_text_list
         }
     }
     
@@ -106,7 +123,7 @@ def get_first_callout_block(token, page_id):
             
     return None
 
-def create_callout_block(token, page_id, content):
+def create_callout_block(token, page_id, rich_text_list):
     """
     페이지에 새로운 콜아웃 블록을 추가합니다.
     """
@@ -123,14 +140,7 @@ def create_callout_block(token, page_id, content):
                 "object": "block",
                 "type": "callout",
                 "callout": {
-                    "rich_text": [
-                        {
-                            "type": "text",
-                            "text": {
-                                "content": content
-                            }
-                        }
-                    ],
+                    "rich_text": rich_text_list,
                     "icon": {
                         "emoji": "🐶"
                     }
@@ -153,11 +163,10 @@ def main():
     OOYU_BIRTHDAY = "2013-09-30"
     
     # 나이 계산
-    age_text = calculate_age(OOYU_BIRTHDAY)
-    final_content = f"오늘의 우유 상태: {age_text}"
+    years, months, days, total_days = calculate_age(OOYU_BIRTHDAY)
+    rich_text_list = get_rich_text_objects(years, months, days, total_days)
     
-    print(f"우유의 현재 나이: {age_text}")
-    print(f"업데이트할 텍스트: {final_content}")
+    print(f"우유의 현재 나이: {years}년 {months}개월 {days}일차 (D+{total_days})")
     
     # 노션 설정 확인
     token = os.environ.get("NOTION_TOKEN")
@@ -174,11 +183,11 @@ def main():
     
     if block_id:
         print(f"콜아웃 블록 발견: {block_id}")
-        update_notion_block(token, block_id, final_content)
+        update_notion_block(token, block_id, rich_text_list)
     else:
         print("페이지 최상단에서 콜아웃 블록을 찾을 수 없습니다.")
         print("새로운 콜아웃 블록을 생성합니다...")
-        create_callout_block(token, page_id, final_content)
+        create_callout_block(token, page_id, rich_text_list)
 
 if __name__ == "__main__":
     main()
