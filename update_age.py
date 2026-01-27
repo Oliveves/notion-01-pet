@@ -52,19 +52,24 @@ def get_rich_text_objects(years, months, days, total_days, birth_date, pet_name)
     birth_year = birth_date.year
     
     # 계절 판별 및 N번째 계산
+    # 계절 판별 및 N번째 계산
     # 3-5: 봄 / 6-8: 여름 / 9-11: 가을 / 12,1,2: 겨울
     if 3 <= current_month <= 5:
         season_name = "봄"
+        season_emoji = "🌸"
         # 봄은 그 해의 연도로 계산
         nth_season = current_year - birth_year + 1
     elif 6 <= current_month <= 8:
         season_name = "여름"
+        season_emoji = "🏖️"
         nth_season = current_year - birth_year + 1
     elif 9 <= current_month <= 11:
         season_name = "가을"
+        season_emoji = "🍂"
         nth_season = current_year - birth_year + 1
     else:
         season_name = "겨울"
+        season_emoji = "❄️"
         # 1, 2월은 작년 겨울 시즌에 포함되므로 보정
         season_year = current_year if current_month == 12 else (current_year - 1)
         nth_season = season_year - birth_year + 1
@@ -73,7 +78,7 @@ def get_rich_text_objects(years, months, days, total_days, birth_date, pet_name)
         f"\\texttt{{\\huge {years}}} \\texttt{{\\tiny \\ 해}} \\quad "
         f"\\texttt{{\\huge {months}}} \\texttt{{\\tiny \\ 개월}} \\quad "
         f"\\color{{gray}}\\mathsf{{\\scriptsize (D+{total_days})}} \\quad "
-        f"\\color{{black}} \\textsf{{\\scriptsize {pet_name}와 함께한 {nth_season}번째 {season_name}}}"
+        f"\\color{{black}} \\textsf{{\\scriptsize {pet_name}와 함께한 {nth_season}번째 {season_name} {season_emoji}}}"
     )
 
     return [
