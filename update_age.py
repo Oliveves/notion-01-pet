@@ -43,7 +43,7 @@ def calculate_age(birth_date_str):
     
     return years, months, days, total_days
 
-def get_rich_text_objects(years, months, days, total_days, birth_date):
+def get_rich_text_objects(years, months, days, total_days, birth_date, pet_name):
     """
     타자기 폰트(\texttt) 디자인을 유지하며, 현재 계절에 맞춰 {nth}번째 {Season} 문구를 적용합니다.
     """
@@ -73,7 +73,7 @@ def get_rich_text_objects(years, months, days, total_days, birth_date):
         f"\\texttt{{\\huge {years}}} \\texttt{{\\tiny \\ 해}} \\quad "
         f"\\texttt{{\\huge {months}}} \\texttt{{\\tiny \\ 개월}} \\quad "
         f"\\color{{gray}}\\texttt{{\\small (D+{total_days})}} \\quad "
-        f"\\texttt{{\\small {nth_season}번째 {season_name}}}"
+        f"\\texttt{{\\small {pet_name}와 함께한 {nth_season}번째 {season_name}}}"
     )
 
     return [
@@ -177,18 +177,19 @@ def main():
     # 우유의 생년월일
     OOYU_BIRTHDAY = "2013-09-30"
     
-    # 나이 계산
+    # 노션 설정 확인
+    token = os.environ.get("NOTION_TOKEN")
+    page_id = os.environ.get("NOTION_PAGE_ID")
+    pet_name = os.environ.get("PET_NAME", "우유") # 기본값: 우유
+    
     # 나이 계산
     years, months, days, total_days = calculate_age(OOYU_BIRTHDAY)
     
     birth_date_obj = datetime.strptime(OOYU_BIRTHDAY, "%Y-%m-%d")
-    rich_text_list = get_rich_text_objects(years, months, days, total_days, birth_date_obj)
+    rich_text_list = get_rich_text_objects(years, months, days, total_days, birth_date_obj, pet_name)
     
     print(f"우유의 현재 나이: {years}년 {months}개월 {days}일차 (D+{total_days})")
-    
-    # 노션 설정 확인
-    token = os.environ.get("NOTION_TOKEN")
-    page_id = os.environ.get("NOTION_PAGE_ID")
+    print(f"함께하는 반려동물: {pet_name}")
     
     if not token or not page_id:
         print("\n[알림] Notion 토큰 또는 페이지 ID가 설정되지 않았습니다.")
