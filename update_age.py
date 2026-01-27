@@ -45,29 +45,22 @@ def calculate_age(birth_date_str):
 
 def get_rich_text_objects(years, months, days, total_days):
     """
-    숫자를 mathtt 폰트(수식)로 변환하여 rich_text 객체 리스트를 생성합니다.
+    모노톤 디자인을 적용한 하나의 Equation Text 객체를 반환합니다.
+    디자인: \textsf{\huge {years}} \textsf{\small Y} \quad \textsf{\huge {months}} \textsf{\small M} \quad \color{gray}\textsf{\small (D+{total_days})}
     """
-    def number_to_equation(num):
-        return {
-            "type": "equation",
-            "equation": {
-                "expression": f"\\mathtt{{{num}}}"
-            }
-        }
-
-    def text_object(content):
-        return {
-            "type": "text",
-            "text": {
-                "content": content
-            }
-        }
+    equation_content = (
+        f"\\textsf{{\\huge {years}}} \\textsf{{\\small Y}} \\quad "
+        f"\\textsf{{\\huge {months}}} \\textsf{{\\small M}} \\quad "
+        f"\\color{{gray}}\\textsf{{\\small (D+{total_days})}}"
+    )
 
     return [
-        number_to_equation(years), text_object("년 "),
-        number_to_equation(months), text_object("개월 "),
-        number_to_equation(days), text_object("일차 (D+"),
-        number_to_equation(total_days), text_object(")")
+        {
+            "type": "equation",
+            "equation": {
+                "expression": equation_content
+            }
+        }
     ]
 
 def update_notion_block(token, block_id, rich_text_list):
