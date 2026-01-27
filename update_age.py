@@ -173,23 +173,54 @@ def create_callout_block(token, page_id, rich_text_list):
         print(response.text)
         return False
 
+def load_config():
+    """
+    config.json 파일에서 설정을 읽어옵니다. 없으면 기본값을 반환합니다.
+    """
+    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    default_config = {
+        "pet_name": "우유",
+        "birthday": "2013-09-30"
+    }
+    
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                user_config = json.load(f)
+                # 기본값에 사용자 설정 덮어쓰기
+                default_config.update(user_config)
+                print("config.json 설정을 로드했습니다.")
+        except Exception as e:
+            print(f"config.json 로드 중 오류 발생: {e}")
+            print("기본 설정을 사용합니다.")
+    else:
+        print("config.json이 없어 기본 설정을 사용합니다.")
+        
+    return default_config
+
 def main():
-    # 우유의 생년월일
-    OOYU_BIRTHDAY = "2013-09-30"
+    # 설정 로드
+    config = load_config()
+    
+    pet_name = config.get("pet_name")
+    birth_date_str = config.get("birthday")
+    
+    # 환경변수가 있다면 우선순위 (옵션) - 여기서는 config를 우선하거나 섞어 쓸 수 있음
+    # 편의상 config -> 환경변수(PET_NAME) 덮어쓰기 로직으로 해도 되지만,
+    # 사용자의 요청은 '쉬운 편집'이므로 config.json 값을 메인으로 사용
     
     # 노션 설정 확인
     token = os.environ.get("NOTION_TOKEN")
     page_id = os.environ.get("NOTION_PAGE_ID")
-    pet_name = os.environ.get("PET_NAME", "우유") # 기본값: 우유
     
     # 나이 계산
-    years, months, days, total_days = calculate_age(OOYU_BIRTHDAY)
+    years, months, days, total_days = calculate_age(birth_date_str)
     
-    birth_date_obj = datetime.strptime(OOYU_BIRTHDAY, "%Y-%m-%d")
+    birth_date_obj = datetime.strptime(birth_date_str, "%Y-%m-%d")
     rich_text_list = get_rich_text_objects(years, months, days, total_days, birth_date_obj, pet_name)
     
-    print(f"우유의 현재 나이: {years}년 {months}개월 {days}일차 (D+{total_days})")
-    print(f"함께하는 반려동물: {pet_name}")
+    print(f"[{pet_name}]의 현재 나이: {years}년 {months}개월 {days}일차 (D+{total_days})")
+    print(f"생일: {birth_date_str}")
     
     if not token or not page_id:
         print("\n[알림] Notion 토큰 또는 페이지 ID가 설정되지 않았습니다.")
