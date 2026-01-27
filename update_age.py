@@ -3,10 +3,7 @@ import sys
 from datetime import datetime
 import requests
 import json
-
-# 설정 (사용자가 직접 수정하거나 환경 변수로 설정)
-# NOTION_TOKEN = os.environ.get("NOTION_TOKEN", "YOUR_NOTION_TOKEN_HERE")
-# PAGE_ID = os.environ.get("NOTION_PAGE_ID", "YOUR_PAGE_ID_HERE")
+import time
 
 def calculate_age(birth_date_str):
     """
@@ -15,19 +12,12 @@ def calculate_age(birth_date_str):
     birth_date = datetime.strptime(birth_date_str, "%Y-%m-%d")
     today = datetime.now()
     
-    # 만 나이 계산 로직이 아님. 단순 기간 계산 (X년 X개월 X일째)
-    # relativedelta를 사용하면 더 정확하지만, 표준 라이브러리만 사용하기 위해 직접 계산
-    
     years = today.year - birth_date.year
     months = today.month - birth_date.month
     days = today.day - birth_date.day
     
     if days < 0:
         months -= 1
-        # 이전 달의 날짜 수 가져오기
-        first_day_of_this_month = today.replace(day=1)
-        # last_month_last_day = (first_day_of_this_month - birth_date.resolution).day # resolution removed
-        
         import calendar
         prev_month_year = today.year if today.month > 1 else today.year - 1
         prev_month = today.month - 1 if today.month > 1 else 12
@@ -43,21 +33,33 @@ def calculate_age(birth_date_str):
     
     return years, months, days, total_days
 
-def get_rich_text_objects(years, months, days, total_days, birth_date, pet_name):
+def get_age_rich_text(years, months, days, total_days):
     """
-    타자기 폰트(\texttt) 디자인을 유지하며, 현재 계절에 맞춰 {nth}번째 {Season} 문구를 적용합니다.
+     [LINE 2] 나이 정보 (타자기체 + 회색 D+)
+     디자인: \texttt{\huge 12} \texttt{\tiny \ 해} \quad \texttt{\huge 3} \texttt{\tiny \ 개월} \hspace{5pt}\color{gray}\mathsf{\scriptsize (D+4503)}
+    """
+    equation_content = (
+        f"\\texttt{{\\huge {years}}} \\texttt{{\\tiny \\ 해}} \\quad "
+        f"\\texttt{{\\huge {months}}} \\texttt{{\\tiny \\ 개월}} \\hspace{{5pt}}\\color{{gray}}\\mathsf{{\\scriptsize (D+{total_days})}}"
+    )
+    return [{
+        "type": "equation",
+        "equation": {"expression": equation_content}
+    }]
+
+def get_season_rich_text(birth_date, pet_name):
+    """
+    [LINE 3] 계절 정보 + 이모티콘
+    디자인: \color{gray} \textsf{\scriptsize 우유와 함께하는 13번째} \color{black} \mathbf{\scriptsize \ 겨울}
     """
     current_year = datetime.now().year
     current_month = datetime.now().month
     birth_year = birth_date.year
     
     # 계절 판별 및 N번째 계산
-    # 계절 판별 및 N번째 계산
-    # 3-5: 봄 / 6-8: 여름 / 9-11: 가을 / 12,1,2: 겨울
     if 3 <= current_month <= 5:
         season_name = "봄"
         season_emoji = "🌷"
-        # 봄은 그 해의 연도로 계산
         nth_season = current_year - birth_year + 1
     elif 6 <= current_month <= 8:
         season_name = "여름"
@@ -70,344 +72,249 @@ def get_rich_text_objects(years, months, days, total_days, birth_date, pet_name)
     else:
         season_name = "겨울"
         season_emoji = "🧦"
-        # 1, 2월은 작년 겨울 시즌에 포함되므로 보정
         season_year = current_year if current_month == 12 else (current_year - 1)
         nth_season = season_year - birth_year + 1
-    
+        
     equation_content = (
-        f"\\texttt{{\\huge {years}}} \\texttt{{\\tiny \\ 해}} \\quad "
-        f"\\texttt{{\\huge {months}}} \\texttt{{\\tiny \\ 개월}} \\quad "
-        f"\\color{{gray}}\\mathsf{{\\scriptsize (D+{total_days})}} \\quad "
         f"\\color{{gray}} \\textsf{{\\scriptsize {pet_name}와 함께하는 {nth_season}번째}} \\color{{black}} \\mathbf{{\\scriptsize \\ {season_name}}}"
     )
-
+    
     return [
         {
             "type": "equation",
-            "equation": {
-                "expression": equation_content
-            }
+            "equation": {"expression": equation_content}
         },
         {
             "type": "text",
-            "text": {
-                "content": f" {season_emoji}"
-            }
+            "text": {"content": f" {season_emoji}"}
         }
     ]
 
-def update_notion_block(token, block_id, rich_text_list):
+def scan_page_for_targets(token, page_id):
     """
-    Notion API를 사용하여 블록의 내용을 업데이트합니다.
-    rich_text_list: get_rich_text_objects()에서 반환된 리스트
+    페이지 전체를 스캔하여 대상 블록(나이, 계절)을 찾습니다.
+    """
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Notion-Version": "2022-06-28"
+    }
+    
+    found_blocks = {"age": None, "season": None}
+    
+    # BFS 방식으로 탐색 (Queue)
+    queue = [page_id] # 시작은 페이지 아이디
+    visited = set()
+    
+    while queue:
+        current_id = queue.pop(0)
+        if current_id in visited:
+            continue
+        visited.add(current_id)
+        
+        # 자식 블록 가져오기
+        url = f"https://api.notion.com/v1/blocks/{current_id}/children"
+        try:
+            response = requests.get(url, headers=headers)
+            if response.status_code != 200:
+                continue
+            
+            blocks = response.json().get("results", [])
+            
+            for block in blocks:
+                b_type = block.get("type")
+                b_id = block.get("id")
+                
+                # 내용 검사 (수식 포함 여부 확인)
+                content_str = ""
+                full_content = ""
+                if b_type in ["paragraph", "heading_1", "heading_2", "heading_3", "callout", "quote", "toggle"]:
+                    rich_text = block.get(b_type, {}).get("rich_text", [])
+                    # Plain text 추출
+                    plain_text = "".join([t.get("plain_text", "") for t in rich_text])
+                    # Equation expression 추출 (수식 내부 텍스트 확인용)
+                    equation_text = ""
+                    for rt in rich_text:
+                        if rt.get("type") == "equation":
+                            equation_text += rt.get("equation", {}).get("expression", "")
+                    
+                    full_content = plain_text + equation_text
+                    
+                    # 시그니처 매칭
+                    # Age Block: "D+" 혹은 "해", "개월" 등이 포함된 수식 (user specific: D+)
+                    if "D+" in full_content and found_blocks["age"] is None:
+                        print(f"Found Age Block: {b_id}")
+                        found_blocks["age"] = b_id
+                        
+                    # Season Block: "함께하는" or "함께한"
+                    if ("함께하는" in full_content or "함께한" in full_content) and found_blocks["season"] is None:
+                        print(f"Found Season Block: {b_id}")
+                        found_blocks["season"] = b_id
+                
+                # 더 깊이 탐색할 블록들 큐에 추가
+                if block.get("has_children"):
+                    queue.append(b_id)
+                    
+            if found_blocks["age"] and found_blocks["season"]:
+                break
+                
+        except Exception as e:
+            print(f"Error scanning block {current_id}: {e}")
+            continue
+            
+    return found_blocks
+
+def update_notion_block_content(token, block_id, rich_text_list, block_type="paragraph"):
+    """
+    특정 블록의 내용을 업데이트합니다.
     """
     url = f"https://api.notion.com/v1/blocks/{block_id}"
-    
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
         "Notion-Version": "2022-06-28"
     }
     
-    # 콜아웃 블록 업데이트 페이로드
-    payload = {
-        "callout": {
-            "rich_text": rich_text_list
-        }
-    }
-    
-    response = requests.patch(url, headers=headers, json=payload)
-    
-    if response.status_code == 200:
-        print("성공적으로 업데이트되었습니다!")
-        return True
+    # 블록 타입에 맞춰 페이로드 생성
+    if block_type == "callout":
+         payload = { "callout": { "rich_text": rich_text_list } }
     else:
-        print(f"업데이트 실패: {response.status_code}")
-        print(response.text)
-        return False
+         # 기본적으로 paragraph로 취급
+         payload = { "paragraph": { "rich_text": rich_text_list } }
 
-def get_first_callout_block(token, page_id):
-    """
-    페이지의 블록 자식들을 조회하여 첫 번째 콜아웃 블록의 ID를 반환합니다.
-    """
-    url = f"https://api.notion.com/v1/blocks/{page_id}/children"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Notion-Version": "2022-06-28"
-    }
-    
-    response = requests.get(url, headers=headers)
-    if response.status_code != 200:
-        print(f"블록 조회 실패: {response.status_code}")
-        print(response.text)
-        return None
-        
-    data = response.json()
-    for block in data.get("results", []):
-        if block.get("type") == "callout":
-            return block.get("id")
-            
-    return None
-
-def create_callout_block(token, page_id, rich_text_list):
-    """
-    페이지에 새로운 콜아웃 블록을 추가합니다.
-    """
-    url = f"https://api.notion.com/v1/blocks/{page_id}/children"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "Notion-Version": "2022-06-28"
-    }
-    
-    payload = {
-        "children": [
-            {
-                "object": "block",
-                "type": "callout",
-                "callout": {
-                    "rich_text": rich_text_list,
-                    "icon": {
-                        "emoji": "🐶"
-                    }
-                }
-            }
-        ]
-    }
-    
     response = requests.patch(url, headers=headers, json=payload)
     if response.status_code == 200:
-        print("새로운 콜아웃 블록이 생성되었습니다!")
         return True
     else:
-        print(f"블록 생성 실패: {response.status_code}")
-        print(response.text)
+        print(f"Update failed for {block_id}: {response.text}")
         return False
-
-def load_config():
-    """
-    config.json 파일에서 설정을 읽어옵니다. 없으면 기본값을 반환합니다.
-    """
-    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
-    default_config = {
-        "pet_name": "우유",
-        "birthday": "2013-09-30"
-    }
-    
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                user_config = json.load(f)
-                # 기본값에 사용자 설정 덮어쓰기
-                default_config.update(user_config)
-                print("config.json 설정을 로드했습니다.")
-        except Exception as e:
-            print(f"config.json 로드 중 오류 발생: {e}")
-            print("기본 설정을 사용합니다.")
-    else:
-        print("config.json이 없어 기본 설정을 사용합니다.")
-        
-    return default_config
 
 def get_config_from_notion(token, page_id):
     """
-    Notion 페이지의 블록들을 스캔하여 설정값을 읽어옵니다.
-    지원 형식:
-    - 이름: OOO
-    - 생일: YYYY-MM-DD
+    Notion 페이지의 블록들을 스캔하여 설정값을 읽어옵니다. (이름, 생일)
     """
-    url = f"https://api.notion.com/v1/blocks/{page_id}/children"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Notion-Version": "2022-06-28"
-    }
-    
-    response = requests.get(url, headers=headers)
-    if response.status_code != 200:
-        print(f"Notion 설정 읽기 실패: {response.status_code}")
-        return {}
-        
     config = {}
-    data = response.json()
+    url = f"https://api.notion.com/v1/blocks/{page_id}/children"
+    headers = { "Authorization": f"Bearer {token}", "Notion-Version": "2022-06-28" }
     
-    for block in data.get("results", []):
-        # 텍스트가 있는 블록 타입들 확인 (paragraph, heading 등)
-        text_content = ""
-        block_type = block.get("type")
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200: return {}
+        data = response.json()
         
-        if block_type in ["paragraph", "heading_1", "heading_2", "heading_3", "callout", "quote", "toggle"]:
-            rich_texts = block.get(block_type, {}).get("rich_text", [])
-            text_content = "".join([t.get("text", {}).get("content", "") for t in rich_texts])
+        results = data.get("results", [])
+        
+        for block in results:
+            b_type = block.get("type")
+            text = ""
+            if b_type in ["paragraph", "toggle", "callout", "heading_1", "heading_2", "heading_3"]:
+                 rich_texts = block.get(b_type, {}).get("rich_text", [])
+                 text = "".join([t.get("plain_text", "") for t in rich_texts])
             
-        # 설정 파싱
-        if "이름:" in text_content:
-            try:
-                config["pet_name"] = text_content.split("이름:")[1].strip()
-                print(f"Notion에서 이름 발견: {config['pet_name']}")
-            except:
-                pass
-                
-        if "생일:" in text_content:
-            try:
-                config["birthday"] = text_content.split("생일:")[1].strip()
-                print(f"Notion에서 생일 발견: {config['birthday']}")
-            except:
-                pass
-                
+            if "이름:" in text: config["pet_name"] = text.split("이름:")[1].strip()
+            if "생일:" in text: config["birthday"] = text.split("생일:")[1].strip()
+            
+            if b_type == "toggle" and "설정" in text:
+                 t_url = f"https://api.notion.com/v1/blocks/{block['id']}/children"
+                 t_res = requests.get(t_url, headers=headers)
+                 if t_res.status_code == 200:
+                     t_children = t_res.json().get("results", [])
+                     for child in t_children:
+                         c_type = child.get("type")
+                         c_text = ""
+                         if c_type in ["paragraph", "callout"]:
+                             rts = child.get(c_type, {}).get("rich_text", [])
+                             c_text = "".join([t.get("plain_text", "") for t in rts])
+                         
+                         if "이름:" in c_text: config["pet_name"] = c_text.split("이름:")[1].strip()
+                         if "생일:" in c_text: config["birthday"] = c_text.split("생일:")[1].strip()
+                         
+    except Exception as e:
+        print(f"Config scan error: {e}")
+        
+    return config
+
+def load_config():
+    config = { "pet_name": "우유", "birthday": "2013-09-30" }
+    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            config.update(json.load(f))
     return config
 
 def ensure_settings_block(token, page_id):
-    """
-    페이지에 설정값을 입력할 수 있는 Toggle 블록이 있는지 확인하고, 없으면 생성합니다.
-    """
     url = f"https://api.notion.com/v1/blocks/{page_id}/children"
-    headers = {
-        "Authorization": f"Bearer {token}",
+    headers = { 
+        "Authorization": f"Bearer {token}", 
         "Notion-Version": "2022-06-28",
         "Content-Type": "application/json"
     }
     
-    # 1. 기존 블록 확인
-    get_response = requests.get(url, headers=headers)
-    if get_response.status_code == 200:
-        data = get_response.json()
-        for block in data.get("results", []):
-            if block.get("type") == "toggle":
-                rich_text = block.get("toggle", {}).get("rich_text", [])
-                text_content = "".join([t.get("text", {}).get("content", "") for t in rich_text])
-                if "설정" in text_content:
-                    print("기존 설정 블록을 찾았습니다.")
-                    return
+    res = requests.get(url, headers=headers)
+    if res.status_code == 200:
+        for b in res.json().get("results", []):
+            if b.get("type") == "toggle":
+                txt = "".join([t.get("plain_text", "") for t in b.get("toggle", {}).get("rich_text", [])])
+                if "설정" in txt: return
 
-    # 2. 없으면 생성
-    print("설정 블록이 없습니다. 새로 생성합니다...")
+    print("Creating settings block...")
     payload = {
         "children": [
             {
-                "object": "block",
-                "type": "toggle",
-                "toggle": {
-                    "rich_text": [
-                        {
-                            "type": "text",
-                            "text": {
-                                "content": "⚙️ 설정 (이곳을 클릭하여 이름과 생일을 수정하세요)"
-                            }
-                        }
-                    ]
-                },
+                "object": "block", "type": "toggle",
+                "toggle": { "rich_text": [{ "text": { "content": "⚙️ 설정 (이곳을 클릭하여 이름과 생일을 수정하세요)" } }] },
                 "children": [
-                    {
-                        "object": "block",
-                        "type": "paragraph",
-                        "paragraph": {
-                            "rich_text": [
-                                {
-                                    "type": "text",
-                                    "text": {
-                                        # 기본값은 config.json이나 코드의 기본값을 따름
-                                        "content": "이름: 우유" 
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        "object": "block",
-                        "type": "paragraph",
-                        "paragraph": {
-                            "rich_text": [
-                                {
-                                    "type": "text",
-                                    "text": {
-                                        "content": "생일: 2013-09-30"
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        "object": "block",
-                        "type": "callout",
-                        "callout": {
-                            "rich_text": [
-                                {
-                                    "type": "text",
-                                    "text": {
-                                        "content": "위 내용을 수정하면 다음 업데이트 시 반영됩니다."
-                                    }
-                                }
-                            ],
-                            "icon": {
-                                "emoji": "💡"
-                            }
-                        }
-                    }
+                    { "object": "block", "type": "paragraph", "paragraph": { "rich_text": [{ "text": { "content": "이름: 우유" } }] } },
+                    { "object": "block", "type": "paragraph", "paragraph": { "rich_text": [{ "text": { "content": "생일: 2013-09-30" } }] } },
+                    { "object": "block", "type": "callout", "callout": { "rich_text": [{ "text": { "content": "수정 후 다음 업데이트에 반영됩니다." } }], "icon": { "emoji": "💡" } } }
                 ]
             }
         ]
     }
-    
-    post_response = requests.patch(url, headers=headers, json=payload)
-    if post_response.status_code == 200:
-        print("설정 블록을 성공적으로 생성했습니다.")
-    else:
-        print(f"설정 블록 생성 실패: {post_response.status_code}")
-        print(post_response.text)
+    requests.patch(url, headers=headers, json=payload)
 
 def main():
-    # 노션 설정 확인 (환경변수)
     token = os.environ.get("NOTION_TOKEN")
     page_id = os.environ.get("NOTION_PAGE_ID")
     
     if not token or not page_id:
-        print("\n[알림] Notion 토큰 또는 페이지 ID가 설정되지 않았습니다.")
-        print("환경 변수 'NOTION_TOKEN'과 'NOTION_PAGE_ID'를 설정해야 실제로 노션에 업데이트됩니다.")
+        print("Error: Notion Token or Page ID missing.")
         return
 
-    # 1. config.json 로드 (기본값)
     config = load_config()
-    
-    # 2. Notion 페이지에서 설정 로드 (덮어쓰기)
-    # 먼저 설정 블록이 있는지 확인하고 없으면 만듦 (사용자 편의)
     ensure_settings_block(token, page_id)
+    notion_config = get_config_from_notion(token, page_id)
+    config.update(notion_config)
     
-    try:
-        print("Notion 페이지에서 설정을 찾고 있습니다...")
-        notion_config = get_config_from_notion(token, page_id)
-        if notion_config:
-            print("Notion에서 새로운 설정을 발견하여 적용합니다.")
-            config.update(notion_config)
-    except Exception as e:
-        print(f"Notion 설정 읽기 중 오류: {e}")
-
     pet_name = config.get("pet_name")
     birth_date_str = config.get("birthday")
+    print(f"Config: {pet_name}, {birth_date_str}")
     
-    # 나이 계산
     try:
         years, months, days, total_days = calculate_age(birth_date_str)
         birth_date_obj = datetime.strptime(birth_date_str, "%Y-%m-%d")
-        rich_text_list = get_rich_text_objects(years, months, days, total_days, birth_date_obj, pet_name)
-        
-        print(f"[{pet_name}]의 현재 나이: {years}년 {months}개월 {days}일차 (D+{total_days})")
-        print(f"생일: {birth_date_str}")
-        
-    except ValueError as e:
-        print(f"오류: 생일 형식이 잘못되었습니다 ({birth_date_str}). YYYY-MM-DD 형식이어야 합니다.")
+    except Exception as e:
+        print(f"Date Error: {e}")
         return
 
-    # 페이지 내 첫 번째 콜아웃 블록 찾기
-    print("페이지에서 콜아웃 블록을 찾는 중...")
-    block_id = get_first_callout_block(token, page_id)
+    print("Scanning page for target blocks (Smart Find)...")
+    targets = scan_page_for_targets(token, page_id)
     
-    if block_id:
-        print(f"콜아웃 블록 발견: {block_id}")
-        update_notion_block(token, block_id, rich_text_list)
-    else:
-        print("페이지 최상단에서 콜아웃 블록을 찾을 수 없습니다.")
-        print("새로운 콜아웃 블록을 생성합니다...")
-        create_callout_block(token, page_id, rich_text_list)
+    age_block_id = targets["age"]
+    season_block_id = targets["season"]
+    
+    if not age_block_id or not season_block_id:
+        print(f"Could not find targets. Age: {age_block_id}, Season: {season_block_id}")
+        print("Required Signatures: 'D+' (Age), '함께하는' (Season)")
+        return
+
+    # Update Blocks
+    age_rich_text = get_age_rich_text(years, months, days, total_days)
+    if update_notion_block_content(token, age_block_id, age_rich_text, "paragraph"):
+        print("Updated Age Block successfully.")
+        
+    season_rich_text = get_season_rich_text(birth_date_obj, pet_name)
+    if update_notion_block_content(token, season_block_id, season_rich_text, "paragraph"):
+        print("Updated Season Block successfully.")
 
 if __name__ == "__main__":
     main()
