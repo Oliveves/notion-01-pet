@@ -272,6 +272,68 @@ def ensure_settings_block(token, page_id):
     }
     requests.patch(url, headers=headers, json=payload)
 
+def get_config_from_database(token, page_id):
+    """
+    페이지 내의 '반려견 정보' 데이터베이스를 찾아서 첫 번째 항목의 이름과 생일을 반환합니다.
+    """
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json"
+    }
+    
+    # 1. 페이지의 자식 중 데이터베이스 찾기
+    url = f"https://api.notion.com/v1/blocks/{page_id}/children"
+    db_id = None
+    
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            for block in response.json().get("results", []):
+                if block.get("type") == "child_database":
+                    # 제목 확인
+                    if "반려견 정보" in block.get("child_database", {}).get("title", ""):
+                        db_id = block.get("id")
+                        print(f"반려견 정보 데이터베이스 발견: {db_id}")
+                        break
+    except Exception as e:
+        print(f"DB 검색 실패: {e}")
+        
+    if not db_id:
+        # DB가 없으면 기존 방식(텍스트 파싱)이나 기본값 사용
+        return {}
+        
+    # 2. 데이터베이스 쿼리
+    query_url = f"https://api.notion.com/v1/databases/{db_id}/query"
+    try:
+        # 첫 번째 페이지만 가져옴
+        q_response = requests.post(query_url, headers=headers, json={"page_size": 1})
+        if q_response.status_code == 200:
+            results = q_response.json().get("results", [])
+            if results:
+                page = results[0]
+                props = page.get("properties", {})
+                
+                config = {}
+                
+                # 이름 (Title)
+                name_prop = props.get("이름", {}).get("title", [])
+                if name_prop:
+                    config["pet_name"] = name_prop[0].get("plain_text", "")
+                    
+                # 생일 (Date)
+                date_prop = props.get("생일", {}).get("date", {})
+                if date_prop:
+                    config["birthday"] = date_prop.get("start", "")
+                    
+                print(f"DB에서 설정 로드: {config}")
+                return config
+                
+    except Exception as e:
+        print(f"DB 쿼리 실패: {e}")
+        
+    return {}
+
 def main():
     token = os.environ.get("NOTION_TOKEN")
     page_id = os.environ.get("NOTION_PAGE_ID")
@@ -281,13 +343,22 @@ def main():
         return
 
     config = load_config()
-    ensure_settings_block(token, page_id)
-    notion_config = get_config_from_notion(token, page_id)
-    config.update(notion_config)
+    
+    # 1. DB에서 설정 로드 (1순위)
+    print("Notion 데이터베이스에서 설정을 확인합니다...")
+    db_config = get_config_from_database(token, page_id)
+    if db_config:
+        config.update(db_config)
+    else:
+        # 2. DB가 없거나 비어있으면 기존 Text 설정 블록 확인 (하위 호환)
+        print("DB 설정을 찾지 못해 기존 텍스트 설정을 확인합니다...")
+        ensure_settings_block(token, page_id) # 텍스트 설정 블록은 일단 유지 (사용자 혼란 방지)
+        notion_config = get_config_from_notion(token, page_id)
+        config.update(notion_config)
     
     pet_name = config.get("pet_name")
     birth_date_str = config.get("birthday")
-    print(f"Config: {pet_name}, {birth_date_str}")
+    print(f"최종 설정: {pet_name}, {birth_date_str}")
     
     try:
         years, months, days, total_days = calculate_age(birth_date_str)
@@ -304,7 +375,6 @@ def main():
     
     if not age_block_id or not season_block_id:
         print(f"Could not find targets. Age: {age_block_id}, Season: {season_block_id}")
-        print("Required Signatures: 'D+' (Age), '함께하는' (Season)")
         return
 
     # Update Blocks
