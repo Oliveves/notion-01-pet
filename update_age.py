@@ -70,8 +70,8 @@ def get_rich_text_objects(years, months, days, total_days, birth_date):
         nth_season = season_year - birth_year + 1
     
     equation_content = (
-        f"\\texttt{{\\huge {years}}} \\texttt{{\\tiny  해}} \\quad "
-        f"\\texttt{{\\huge {months}}} \\texttt{{\\tiny  개월}} \\quad "
+        f"\\texttt{{\\huge {years}}} \\texttt{{\\tiny \\ 해}} \\quad "
+        f"\\texttt{{\\huge {months}}} \\texttt{{\\tiny \\ 개월}} \\quad "
         f"\\color{{gray}}\\texttt{{\\small (D+{total_days})}} \\quad "
         f"\\texttt{{\\small {nth_season}번째 {season_name}}}"
     )
