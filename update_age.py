@@ -72,8 +72,8 @@ def get_rich_text_objects(years, months, days, total_days, birth_date, pet_name)
     equation_content = (
         f"\\texttt{{\\huge {years}}} \\texttt{{\\tiny \\ 해}} \\quad "
         f"\\texttt{{\\huge {months}}} \\texttt{{\\tiny \\ 개월}} \\quad "
-        f"\\color{{gray}}\\texttt{{\\small (D+{total_days})}} \\quad "
-        f"\\texttt{{\\scriptsize {pet_name}와 함께한 {nth_season}번째 {season_name}}}"
+        f"\\color{{gray}}\\mathsf{{\\scriptsize (D+{total_days})}} \\quad "
+        f"\\color{{black}} \\textsf{{\\scriptsize {pet_name}와 함께한 {nth_season}번째 {season_name}}}"
     )
 
     return [
