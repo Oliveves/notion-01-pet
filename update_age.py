@@ -45,31 +45,35 @@ def calculate_age(birth_date_str):
 
 def get_rich_text_objects(years, months, days, total_days, birth_date):
     """
-    타자기 폰트(\texttt) 디자인과 {nth}번째 겨울 문구를 적용합니다.
-    디자인: \texttt{\huge {years}} \texttt{\small Y} \quad \textsf{\huge {months}} \textsf{\small M} \quad \color{gray}\textsf{\small (D+{total_days})} -- (User asked for ALL \texttt)
-    Revised Revised: \texttt{\huge {years}} \texttt{\small Y} \quad \texttt{\huge {months}} \texttt{\small M} \quad \color{gray}\texttt{\small (D+{total_days})} 
-    And add Nth winter text.
+    타자기 폰트(\texttt) 디자인을 유지하며, 현재 계절에 맞춰 {nth}번째 {Season} 문구를 적용합니다.
     """
-    # N번째 겨울 계산
-    # 태어난 연도부터 현재 연도까지의 겨울 횟수
-    # 예: 2013-09-30생. 
-    # 2013년 12월 -> 1번째 겨울.
-    # 2026년 1월 -> 2025년 겨울 -> 13번째 겨울 (2013...2025)
-    
     current_year = datetime.now().year
     current_month = datetime.now().month
     birth_year = birth_date.year
     
-    # 겨울 시즌 보정 (1, 2월은 작년 겨울 시즌)
-    winter_season_year = current_year if current_month >= 11 else (current_year - 1)
-    
-    nth_winter = winter_season_year - birth_year + 1
+    # 계절 판별 및 N번째 계산
+    # 3-5: 봄 / 6-8: 여름 / 9-11: 가을 / 12,1,2: 겨울
+    if 3 <= current_month <= 5:
+        season_name = "봄"
+        # 봄은 그 해의 연도로 계산
+        nth_season = current_year - birth_year + 1
+    elif 6 <= current_month <= 8:
+        season_name = "여름"
+        nth_season = current_year - birth_year + 1
+    elif 9 <= current_month <= 11:
+        season_name = "가을"
+        nth_season = current_year - birth_year + 1
+    else:
+        season_name = "겨울"
+        # 1, 2월은 작년 겨울 시즌에 포함되므로 보정
+        season_year = current_year if current_month == 12 else (current_year - 1)
+        nth_season = season_year - birth_year + 1
     
     equation_content = (
         f"\\texttt{{\\huge {years}}} \\texttt{{\\small Y}} \\quad "
         f"\\texttt{{\\huge {months}}} \\texttt{{\\small M}} \\quad "
         f"\\color{{gray}}\\texttt{{\\small (D+{total_days})}} \\quad "
-        f"\\texttt{{\\small {nth_winter}번째 겨울}}"
+        f"\\texttt{{\\small {nth_season}번째 {season_name}}}"
     )
 
     return [
