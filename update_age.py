@@ -198,33 +198,88 @@ def load_config():
         
     return default_config
 
+def get_config_from_notion(token, page_id):
+    """
+    Notion 페이지의 블록들을 스캔하여 설정값을 읽어옵니다.
+    지원 형식:
+    - 이름: OOO
+    - 생일: YYYY-MM-DD
+    """
+    url = f"https://api.notion.com/v1/blocks/{page_id}/children"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Notion-Version": "2022-06-28"
+    }
+    
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        print(f"Notion 설정 읽기 실패: {response.status_code}")
+        return {}
+        
+    config = {}
+    data = response.json()
+    
+    for block in data.get("results", []):
+        # 텍스트가 있는 블록 타입들 확인 (paragraph, heading 등)
+        text_content = ""
+        block_type = block.get("type")
+        
+        if block_type in ["paragraph", "heading_1", "heading_2", "heading_3", "callout", "quote", "toggle"]:
+            rich_texts = block.get(block_type, {}).get("rich_text", [])
+            text_content = "".join([t.get("text", {}).get("content", "") for t in rich_texts])
+            
+        # 설정 파싱
+        if "이름:" in text_content:
+            try:
+                config["pet_name"] = text_content.split("이름:")[1].strip()
+                print(f"Notion에서 이름 발견: {config['pet_name']}")
+            except:
+                pass
+                
+        if "생일:" in text_content:
+            try:
+                config["birthday"] = text_content.split("생일:")[1].strip()
+                print(f"Notion에서 생일 발견: {config['birthday']}")
+            except:
+                pass
+                
+    return config
+
 def main():
-    # 설정 로드
-    config = load_config()
-    
-    pet_name = config.get("pet_name")
-    birth_date_str = config.get("birthday")
-    
-    # 환경변수가 있다면 우선순위 (옵션) - 여기서는 config를 우선하거나 섞어 쓸 수 있음
-    # 편의상 config -> 환경변수(PET_NAME) 덮어쓰기 로직으로 해도 되지만,
-    # 사용자의 요청은 '쉬운 편집'이므로 config.json 값을 메인으로 사용
-    
-    # 노션 설정 확인
+    # 노션 설정 확인 (환경변수)
     token = os.environ.get("NOTION_TOKEN")
     page_id = os.environ.get("NOTION_PAGE_ID")
-    
-    # 나이 계산
-    years, months, days, total_days = calculate_age(birth_date_str)
-    
-    birth_date_obj = datetime.strptime(birth_date_str, "%Y-%m-%d")
-    rich_text_list = get_rich_text_objects(years, months, days, total_days, birth_date_obj, pet_name)
-    
-    print(f"[{pet_name}]의 현재 나이: {years}년 {months}개월 {days}일차 (D+{total_days})")
-    print(f"생일: {birth_date_str}")
     
     if not token or not page_id:
         print("\n[알림] Notion 토큰 또는 페이지 ID가 설정되지 않았습니다.")
         print("환경 변수 'NOTION_TOKEN'과 'NOTION_PAGE_ID'를 설정해야 실제로 노션에 업데이트됩니다.")
+        return
+
+    # 1. config.json 로드 (기본값)
+    config = load_config()
+    
+    # 2. Notion 페이지에서 설정 로드 (덮어쓰기)
+    try:
+        print("Notion 페이지에서 설정을 찾고 있습니다...")
+        notion_config = get_config_from_notion(token, page_id)
+        config.update(notion_config)
+    except Exception as e:
+        print(f"Notion 설정 읽기 중 오류: {e}")
+
+    pet_name = config.get("pet_name")
+    birth_date_str = config.get("birthday")
+    
+    # 나이 계산
+    try:
+        years, months, days, total_days = calculate_age(birth_date_str)
+        birth_date_obj = datetime.strptime(birth_date_str, "%Y-%m-%d")
+        rich_text_list = get_rich_text_objects(years, months, days, total_days, birth_date_obj, pet_name)
+        
+        print(f"[{pet_name}]의 현재 나이: {years}년 {months}개월 {days}일차 (D+{total_days})")
+        print(f"생일: {birth_date_str}")
+        
+    except ValueError as e:
+        print(f"오류: 생일 형식이 잘못되었습니다 ({birth_date_str}). YYYY-MM-DD 형식이어야 합니다.")
         return
 
     # 페이지 내 첫 번째 콜아웃 블록 찾기
