@@ -1,0 +1,11 @@
+Notion 데이터베이스에서 설정을 확인합니다...
+반려견 정보 데이터베이스 발견: 2f50d907-031e-8160-940a-f3df2e95ea51
+DB에서 설정 로드: {'pet_name': '우유', 'birthday': '2013-09-30'}
+텍스트 설정 블록을 확인합니다...
+텍스트 설정 발견: {'pet_name': '우유', 'birthday': '2013-09-30'}
+최종 설정: 우유, 2013-09-30
+Scanning page for target blocks (Smart Find)...
+Found Age Block: 2f50d907-031e-8109-a057-fd9481205f0e
+Found Season Block: 2f50d907-031e-80ac-b75a-ebafb9b3261e
+Updated Age Block successfully.
+Updated Season Block successfully.
