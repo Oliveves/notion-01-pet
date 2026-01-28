@@ -5,6 +5,10 @@ import datetime
 import calendar
 import sys
 
+# Force UTF-8 encoding for stdout/stderr to handle emojis on all platforms
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
+
 def fetch_health_log(token, db_id):
     url = f"https://api.notion.com/v1/databases/{db_id}/query"
     headers = {
