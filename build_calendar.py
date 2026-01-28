@@ -83,6 +83,16 @@ def generate_html(calendar_data):
     # CSS
     css = """
     <style>
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+        /* Hide scrollbar for IE, Edge and Firefox */
+        html {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+
         :root {
             --bg-color: #ffffff;
             --text-color: #37352f;
@@ -90,7 +100,7 @@ def generate_html(calendar_data):
             --hover-bg: #f7f7f5;
         }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            font-family: "Courier New", Courier, monospace; /* Typewriter font */
             margin: 0;
             padding: 20px;
             background-color: var(--bg-color);
