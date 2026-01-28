@@ -3,6 +3,7 @@ import requests
 import json
 import datetime
 import calendar
+import sys
 
 def fetch_health_log(token, db_id):
     url = f"https://api.notion.com/v1/databases/{db_id}/query"
@@ -263,7 +264,7 @@ def main():
     
     if not token:
         print("Notion token missing.")
-        return
+        sys.exit(1)
         
     print("Fetching Notion data...")
     raw_data = fetch_health_log(token, db_id)
