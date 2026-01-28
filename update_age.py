@@ -241,36 +241,123 @@ def load_config():
             config.update(json.load(f))
     return config
 
-def ensure_settings_block(token, page_id):
+def ensure_settings_block(token, page_id, default_name="우유", default_birthday="2013-09-30"):
     url = f"https://api.notion.com/v1/blocks/{page_id}/children"
     headers = { 
         "Authorization": f"Bearer {token}", 
         "Notion-Version": "2022-06-28",
         "Content-Type": "application/json"
     }
+
+    # Step 1: Check existing block
+    existing_block_id = None
+    needs_update = False
     
     res = requests.get(url, headers=headers)
     if res.status_code == 200:
         for b in res.json().get("results", []):
             if b.get("type") == "toggle":
-                txt = "".join([t.get("plain_text", "") for t in b.get("toggle", {}).get("rich_text", [])])
-                if "설정" in txt: return
+                # Check contents
+                rich_text = b.get("toggle", {}).get("rich_text", [])
+                txt = "".join([t.get("plain_text", "") for t in rich_text])
+                if "설정" in txt:
+                    existing_block_id = b.get("id")
+                    # Check if it has the new fields (e.g. check children or assume based on content if we could read children here)
+                    # To be safe, we can read children or just rely on a force update if we can't confirm.
+                    # Let's read the children of this block to check for "성별"
+                    child_url = f"https://api.notion.com/v1/blocks/{existing_block_id}/children"
+                    c_res = requests.get(child_url, headers=headers)
+                    if c_res.status_code == 200:
+                        c_txt = ""
+                        for c in c_res.json().get("results", []):
+                            if c.get("type") in ["paragraph", "callout"]:
+                                c_rts = c.get(c.get("type"), {}).get("rich_text", [])
+                                c_txt += "".join([t.get("plain_text", "") for t in c_rts])
+                        
+                        if "성별:" not in c_txt:
+                            print("Old settings block found. Updating schema...")
+                            needs_update = True
+                        else:
+                            return # Already up to date
+                    break
 
-    print("Creating settings block...")
-    payload = {
+    if existing_block_id and needs_update:
+        # Delete old block
+        del_url = f"https://api.notion.com/v1/blocks/{existing_block_id}"
+        requests.delete(del_url, headers=headers)
+        print("Deleted old settings block.")
+
+    # Step 2: Create the Toggle Block
+    payload_parent = {
         "children": [
             {
                 "object": "block", "type": "toggle",
-                "toggle": { "rich_text": [{ "text": { "content": "⚙️ 설정 (이곳을 클릭하여 이름과 생일을 수정하세요)" } }] },
-                "children": [
-                    { "object": "block", "type": "paragraph", "paragraph": { "rich_text": [{ "text": { "content": "이름: 우유" } }] } },
-                    { "object": "block", "type": "paragraph", "paragraph": { "rich_text": [{ "text": { "content": "생일: 2013-09-30" } }] } },
-                    { "object": "block", "type": "callout", "callout": { "rich_text": [{ "text": { "content": "수정 후 다음 업데이트에 반영됩니다." } }], "icon": { "emoji": "💡" } } }
-                ]
+                "toggle": { 
+                    "rich_text": [{ "type": "text", "text": { "content": "⚙️ 설정 (클릭하여 반려견 정보 입력)" } }] 
+                }
             }
         ]
     }
-    requests.patch(url, headers=headers, json=payload)
+    response = requests.patch(url, headers=headers, json=payload_parent)
+    if response.status_code != 200:
+        print(f"Failed to create settings parent block: {response.text}")
+        return
+
+    # Get the new block ID
+    new_blocks = response.json().get("results", [])
+    if not new_blocks:
+        print("Created block but got no results?")
+        return
+        
+    toggle_block_id = new_blocks[0].get("id")
+    print(f"Settings block created ({toggle_block_id}). Adding content...")
+    
+    # Step 3: Add children to the new Toggle Block
+    # List of fields to add
+    fields = [
+        f"이름: {default_name}",
+        f"생일: {default_birthday}",
+        "견종: ",
+        "성별: ",
+        "중성화 여부: ",
+        "몸무게 (kg): ",
+        "동물등록번호: ",
+        "마이크로칩 위치: ",
+        "옷 사이즈: ",
+        "현재 먹는 사료: ",
+        "좋아하는 간식: ",
+        "혈액형: ",
+        "알레르기: ",
+        "마지막 예방접종일: ",
+        "동물병원 연락처: "
+    ]
+    
+    children_payload = []
+    for field in fields:
+        children_payload.append({
+            "object": "block", "type": "paragraph",
+            "paragraph": { "rich_text": [{ "type": "text", "text": { "content": field } }] }
+        })
+    
+    # Add help callout
+    children_payload.append({
+        "object": "block", "type": "callout", 
+        "callout": { 
+            "rich_text": [{ "type": "text", "text": { "content": "내용을 자유롭게 수정하세요. (이름, 생일은 자동 반영)" } }], 
+            "icon": { "type": "emoji", "emoji": "💡" } 
+        } 
+    })
+
+    url_children = f"https://api.notion.com/v1/blocks/{toggle_block_id}/children"
+    
+    # Batch add (Note: Notion allows up to 100 children per request, we have ~16 so it fits)
+    payload_children = { "children": children_payload }
+    
+    resp_child = requests.patch(url_children, headers=headers, json=payload_children)
+    if resp_child.status_code != 200:
+        print(f"Failed to add children to settings block: {resp_child.text}")
+    else:
+        print("Settings content added successfully.")
 
 def get_config_from_database(token, page_id):
     """
@@ -344,18 +431,26 @@ def main():
 
     config = load_config()
     
-    # 1. DB에서 설정 로드 (1순위)
+    # 1. DB에서 설정 로드 (기본값)
     print("Notion 데이터베이스에서 설정을 확인합니다...")
     db_config = get_config_from_database(token, page_id)
     if db_config:
         config.update(db_config)
-    else:
-        # 2. DB가 없거나 비어있으면 기존 Text 설정 블록 확인 (하위 호환)
-        print("DB 설정을 찾지 못해 기존 텍스트 설정을 확인합니다...")
-        ensure_settings_block(token, page_id) # 텍스트 설정 블록은 일단 유지 (사용자 혼란 방지)
-        notion_config = get_config_from_notion(token, page_id)
-        config.update(notion_config)
     
+    # 2. 텍스트 설정 블록 확인 (현재 값 읽기)
+    print("텍스트 설정 블록을 확인합니다...")
+    notion_config = get_config_from_notion(token, page_id)
+    if notion_config:
+        print(f"텍스트 설정 발견: {notion_config}")
+        config.update(notion_config)
+        
+    # 3. 설정 블록 보장 (스키마 업데이트 및 생성)
+    # 읽어온 최신 config 값을 사용하여 블록을 재생성하거나 업데이트함
+    current_name = config.get("pet_name", "우유")
+    current_birthday = config.get("birthday", "2013-09-30")
+    
+    ensure_settings_block(token, page_id, current_name, current_birthday)
+
     pet_name = config.get("pet_name")
     birth_date_str = config.get("birthday")
     print(f"최종 설정: {pet_name}, {birth_date_str}")

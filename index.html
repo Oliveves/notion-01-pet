@@ -1,0 +1,303 @@
+
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Milk's Month</title>
+        
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #37352f;
+            --grid-border: #e0e0e0;
+            --hover-bg: #f7f7f5;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 { margin-bottom: 20px; font-size: 1.5em; font-weight: 600; }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            width: 100%;
+            max-width: 600px;
+        }
+        
+        .day-header {
+            text-align: center;
+            font-size: 0.8em;
+            color: #999;
+            padding-bottom: 8px;
+        }
+        
+        .day-cell {
+            aspect-ratio: 1 / 1;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 0 0 1px var(--grid-border);
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1em;
+            font-weight: 500;
+        }
+        
+        .day-cell:hover {
+            background: var(--hover-bg);
+            z-index: 10;
+        }
+        
+        .day-cell.empty {
+            background: transparent;
+            box-shadow: none;
+            cursor: default;
+        }
+        
+        .today {
+            background: #ebf5fe;
+            color: #0b6e99;
+            box-shadow: 0 0 0 1px #0b6e99;
+        }
+        
+        /* Tooltip */
+        .tooltip {
+            visibility: hidden;
+            width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 8px 12px;
+            position: absolute;
+            z-index: 100;
+            bottom: 125%; /* Position above */
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.8em;
+            font-weight: normal;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+        
+        .day-cell:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .entry-item {
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        /* Valid Entry Indicator dot */
+        .has-entry::after {
+            content: '';
+            position: absolute;
+            bottom: 6px;
+            width: 4px;
+            height: 4px;
+            background-color: #eb5757;
+            border-radius: 50%;
+        }
+        
+    </style>
+    
+    </head>
+    <body>
+        <h1>January 2026</h1>
+        <div class="calendar-grid">
+            <div class="day-header">SUN</div>
+            <div class="day-header">MON</div>
+            <div class="day-header">TUE</div>
+            <div class="day-header">WED</div>
+            <div class="day-header">THU</div>
+            <div class="day-header">FRI</div>
+            <div class="day-header">SAT</div>
+    <div class="day-cell empty"></div><div class="day-cell empty"></div><div class="day-cell empty"></div><div class="day-cell empty"></div>
+                <div class="day-cell">
+                    1
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    2
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    3
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    4
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    5
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    6
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    7
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    8
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    9
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    10
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    11
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    12
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    13
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    14
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    15
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    16
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    17
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    18
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    19
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    20
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    21
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    22
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    23
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    24
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    25
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    26
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    27
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell today">
+                    28
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    29
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    30
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+                <div class="day-cell">
+                    31
+                    <div class="tooltip">No Info</div>
+                </div>
+                
+        </div>
+    </body>
+    </html>
+    
