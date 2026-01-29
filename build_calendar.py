@@ -109,15 +109,9 @@ def generate_html(calendar_data):
     # CSS
     css = """
     <style>
-        /* Hide scrollbar for Chrome, Safari and Opera */
-        ::-webkit-scrollbar {
-            display: none;
-        }
-        /* Hide scrollbar for IE, Edge and Firefox */
-        html {
-            -ms-overflow-style: none;  /* IE and Edge */
-            scrollbar-width: none;  /* Firefox */
-        }
+        /* Hide scrollbar */
+        ::-webkit-scrollbar { display: none; }
+        html { -ms-overflow-style: none; scrollbar-width: none; }
 
         :root {
             --bg-color: #ffffff;
@@ -126,9 +120,9 @@ def generate_html(calendar_data):
             --hover-bg: #f7f7f5;
         }
         body {
-            font-family: "Courier New", Courier, monospace; /* Typewriter font */
+            font-family: "Courier New", Courier, monospace;
             margin: 0;
-            padding: 12px 20px 20px 20px; /* Slightly increased top padding */
+            padding: 12px 20px 20px 20px;
             background-color: var(--bg-color);
             color: var(--text-color);
             display: flex;
@@ -136,13 +130,13 @@ def generate_html(calendar_data):
             align-items: center;
         }
         h1 { 
-            margin-top: 0;
+            margin-top: 0; 
             margin-bottom: 10px; 
             font-size: 0.9em; 
             font-weight: bold; 
-            width: 100%;
-            max-width: 600px;
-            text-align: left;
+            width: 100%; 
+            max-width: 600px; 
+            text-align: left; 
         }
         
         .calendar-grid {
@@ -195,23 +189,25 @@ def generate_html(calendar_data):
         /* Tooltip */
         .tooltip {
             visibility: hidden;
-            width: 200px;
             background-color: #333;
             color: #fff;
             text-align: left;
             border-radius: 6px;
             padding: 8px 12px;
             position: absolute;
-            z-index: 100;
-            bottom: 125%; /* Position above */
+            z-index: 1000;
+            bottom: 125%; 
             left: 50%;
-            margin-left: -100px;
+            transform: translateX(-50%); /* Center horizontally */
+            width: max-content;
+            max-width: 300px;
             opacity: 0;
             transition: opacity 0.3s;
             font-size: 0.8em;
             font-weight: normal;
-            pointer-events: none;
+            pointer-events: auto; /* Enable clicks inside tooltip */
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            white-space: normal;
         }
         
         .tooltip::after {
@@ -232,32 +228,34 @@ def generate_html(calendar_data):
         
         .entry-item {
             margin-bottom: 4px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        }
+        .entry-item:last-child {
+            margin-bottom: 0;
         }
         
-        /* Valid Entry Indicator dot */
-        .has-entry::after {
-            content: '';
-            position: absolute;
-            bottom: 6px;
-            width: 4px;
-            height: 4px;
-            background-color: #eb5757;
-            border-radius: 50%;
-        }
-        
-        /* Link styling */
-        .day-link {
+        /* Tooltip Links */
+        .entry-link {
+            color: #fff;
             text-decoration: none;
-            color: inherit;
-            display: flex;
-            width: 100%;
-            height: 100%;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
+            display: inline-block;
+            border-bottom: 1px dotted #aaa;
+            transition: border-bottom 0.2s;
+        }
+        .entry-link:hover {
+            border-bottom: 1px solid #fff;
+        }
+
+        /* Green Underline for dates with entries */
+        .has-entry .day-number {
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 2px;
+            display: inline-block;
+            line-height: 1.2;
+        }
+        
+        /* Day Number styling */
+        .day-number {
+             pointer-events: none; /* numbers themselves unclickable */
         }
     </style>
     """
@@ -299,29 +297,25 @@ def generate_html(calendar_data):
                 if date_str == str(today): classes += " today"
                 if entries: classes += " has-entry"
                 
-                # Determine Link URL
-                # If entries exist, link to the first one with side-peek logic
-                if entries:
-                    # ?p=PAGE_ID&pm=s (pm=s forces side peek)
-                    first_entry_id = entries[0]["id"]
-                    link_url = f"{base_db_url}?p={first_entry_id}&pm=s"
-                else:
-                    # No entry: just link to DB view
-                    link_url = base_db_url
-
                 tooltip_html = ""
                 if entries:
-                    content_html = "".join([f'<div class="entry-item">{e["display"]}</div>' for e in entries])
+                    content_items = []
+                    for e in entries:
+                        # Link for each entry
+                        e_id = e["id"]
+                        link_url = f"{base_db_url}?p={e_id}&pm=s"
+                        item_html = f'<div class="entry-item"><a href="{link_url}" target="_blank" class="entry-link">{e["display"]}</a></div>'
+                        content_items.append(item_html)
+                    
+                    content_html = "".join(content_items)
                     tooltip_html = f'<div class="tooltip">{content_html}</div>'
                 elif day > 0:
                      tooltip_html = f'<div class="tooltip">No Info</div>'
 
                 html += f"""
                 <div class="{classes}">
-                    <a href="{link_url}" class="day-link" target="_blank">
-                        {day}
-                        {tooltip_html}
-                    </a>
+                    <span class="day-number">{day}</span>
+                    {tooltip_html}
                 </div>
                 """
                 
