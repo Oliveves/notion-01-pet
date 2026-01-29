@@ -298,7 +298,7 @@ def generate_html(calendar_data):
 
                 html += f"""
                 <div class="{classes}">
-                    <a href="{link_url}" class="day-link" target="_top">
+                    <a href="{link_url}" class="day-link" target="_blank">
                         {day}
                         {tooltip_html}
                     </a>
