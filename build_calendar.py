@@ -127,7 +127,6 @@ def generate_html(calendar_data):
         }
         
         .day-header {
-            font-family: Arial, sans-serif;
             text-align: center;
             font-size: 0.8em;
             color: #999;
@@ -145,7 +144,7 @@ def generate_html(calendar_data):
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 0.7em;
+            font-size: 0.85em;
             font-weight: bold;
         }
         
@@ -237,13 +236,13 @@ def generate_html(calendar_data):
     <body>
         <h1>{month_name}</h1>
         <div class="calendar-grid">
-            <div class="day-header">SUN</div>
-            <div class="day-header">MON</div>
-            <div class="day-header">TUE</div>
-            <div class="day-header">WED</div>
-            <div class="day-header">THU</div>
-            <div class="day-header">FRI</div>
-            <div class="day-header">SAT</div>
+            <div class="day-header">Sun</div>
+            <div class="day-header">Mon</div>
+            <div class="day-header">Tue</div>
+            <div class="day-header">Wed</div>
+            <div class="day-header">Thu</div>
+            <div class="day-header">Fri</div>
+            <div class="day-header">Sat</div>
     """
     
     for week in month_days:
