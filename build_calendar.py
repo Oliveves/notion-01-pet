@@ -102,7 +102,7 @@ def generate_html(calendar_data):
         body {
             font-family: "Courier New", Courier, monospace; /* Typewriter font */
             margin: 0;
-            padding: 8px 20px 20px 20px; /* Reduced top padding */
+            padding: 12px 20px 20px 20px; /* Slightly increased top padding */
             background-color: var(--bg-color);
             color: var(--text-color);
             display: flex;
@@ -283,7 +283,7 @@ def generate_html(calendar_data):
 
                 html += f"""
                 <div class="{classes}">
-                    <a href="{db_url}" class="day-link" target="_blank">
+                    <a href="{db_url}" class="day-link" target="_top">
                         {day}
                         {tooltip_html}
                     </a>
