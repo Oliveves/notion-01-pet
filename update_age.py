@@ -1,16 +1,19 @@
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import requests
 import json
 import time
+
+KST = timezone(timedelta(hours=9))
 
 def calculate_age(birth_date_str):
     """
     생년월일(YYYY-MM-DD)을 입력받아 현재 나이를 'X년 X개월 X일차' 형식으로 반환합니다.
     """
-    birth_date = datetime.strptime(birth_date_str, "%Y-%m-%d")
-    today = datetime.now()
+    birth_date = datetime.strptime(birth_date_str, "%Y-%m-%d").replace(tzinfo=KST)
+    # Use KST
+    today = datetime.now(KST)
     
     years = today.year - birth_date.year
     months = today.month - birth_date.month
@@ -52,8 +55,8 @@ def get_season_rich_text(birth_date, pet_name):
     [LINE 3] 계절 정보 + 이모티콘
     디자인: \color{gray} \textsf{\scriptsize 우유와 함께하는 13번째} \color{black} \mathbf{\scriptsize \ 겨울}
     """
-    current_year = datetime.now().year
-    current_month = datetime.now().month
+    current_year = datetime.now(KST).year
+    current_month = datetime.now(KST).month
     birth_year = birth_date.year
     
     # 계절 판별 및 N번째 계산
@@ -140,8 +143,9 @@ def scan_page_for_targets(token, page_id):
                     full_content = plain_text + equation_text
                     
                     # 시그니처 매칭
-                    # Age Block: "D+" 혹은 "해", "개월" 등이 포함된 수식 (user specific: D+)
-                    if "D+" in full_content and found_blocks["age"] is None:
+                    # Age Block: "D+" 혹은 "해", "개월" 등이 포함된 수식
+                    # Also check for LaTeX structure if text is messed up
+                    if ("D+" in full_content or "\\huge" in full_content) and found_blocks["age"] is None:
                         print(f"Found Age Block: {b_id}")
                         found_blocks["age"] = b_id
                         
