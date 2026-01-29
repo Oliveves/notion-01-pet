@@ -109,7 +109,14 @@ def generate_html(calendar_data):
             flex-direction: column;
             align-items: center;
         }
-        h1 { margin-bottom: 20px; font-size: 1.25em; font-weight: bold; }
+        h1 { 
+            margin-bottom: 20px; 
+            font-size: 0.9em; 
+            font-weight: bold; 
+            width: 100%;
+            max-width: 600px;
+            text-align: left;
+        }
         
         .calendar-grid {
             display: grid;
