@@ -144,7 +144,7 @@ def generate_html(calendar_data):
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 1em;
+            font-size: 0.75em;
             font-weight: bold;
         }
         
