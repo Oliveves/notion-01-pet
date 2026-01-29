@@ -102,7 +102,7 @@ def generate_html(calendar_data):
         body {
             font-family: "Courier New", Courier, monospace; /* Typewriter font */
             margin: 0;
-            padding: 20px;
+            padding: 8px 20px 20px 20px; /* Reduced top padding */
             background-color: var(--bg-color);
             color: var(--text-color);
             display: flex;
@@ -110,6 +110,7 @@ def generate_html(calendar_data):
             align-items: center;
         }
         h1 { 
+            margin-top: 0;
             margin-bottom: 10px; 
             font-size: 0.9em; 
             font-weight: bold; 
