@@ -41,11 +41,12 @@ def fetch_health_log(token, db_id):
     return results
 
 def parse_data(results):
-    # Map "YYYY-MM-DD" -> List of entries
+    # Map "YYYY-MM-DD" -> List of entries (dicts)
     calendar_data = {}
     
     for page in results:
         props = page.get("properties", {})
+        page_id = page.get("id").replace("-", "")
         
         # Date
         date_prop = props.get("날짜", {}).get("date", {})
@@ -65,7 +66,12 @@ def parse_data(results):
         if date_str not in calendar_data:
             calendar_data[date_str] = []
             
-        calendar_data[date_str].append(f"{emoji} {title}")
+        calendar_data[date_str].append({
+            "id": page_id,
+            "title": title,
+            "emoji": emoji,
+            "display": f"{emoji} {title}"
+        })
         
     return calendar_data
 
@@ -212,7 +218,6 @@ def generate_html(calendar_data):
         }
         
         /* Valid Entry Indicator dot */
-        /* Valid Entry Indicator dot */
         .has-entry::after {
             content: '';
             position: absolute;
@@ -258,9 +263,9 @@ def generate_html(calendar_data):
             <div class="day-header">Sat</div>
     """
     
-    # Database URL (Hardcoded for now as it matches db_id)
-    # db_id = "2f50d907-031e-800a-82db-e4ca63b42e6e"
-    db_url = "https://www.notion.so/2f50d907031e800a82dbe4ca63b42e6e"
+    # Database URL
+    db_id_clean = "2f50d907031e800a82dbe4ca63b42e6e"
+    base_db_url = f"https://www.notion.so/{db_id_clean}"
 
     for week in month_days:
         for day in week:
@@ -274,16 +279,26 @@ def generate_html(calendar_data):
                 if date_str == str(today): classes += " today"
                 if entries: classes += " has-entry"
                 
+                # Determine Link URL
+                # If entries exist, link to the first one with side-peek logic
+                if entries:
+                    # ?p=PAGE_ID&pm=s (pm=s forces side peek)
+                    first_entry_id = entries[0]["id"]
+                    link_url = f"{base_db_url}?p={first_entry_id}&pm=s"
+                else:
+                    # No entry: just link to DB view
+                    link_url = base_db_url
+
                 tooltip_html = ""
                 if entries:
-                    content_html = "".join([f'<div class="entry-item">{e}</div>' for e in entries])
+                    content_html = "".join([f'<div class="entry-item">{e["display"]}</div>' for e in entries])
                     tooltip_html = f'<div class="tooltip">{content_html}</div>'
                 elif day > 0:
                      tooltip_html = f'<div class="tooltip">No Info</div>'
 
                 html += f"""
                 <div class="{classes}">
-                    <a href="{db_url}" class="day-link" target="_top">
+                    <a href="{link_url}" class="day-link" target="_top">
                         {day}
                         {tooltip_html}
                     </a>
