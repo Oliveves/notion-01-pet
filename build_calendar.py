@@ -301,10 +301,8 @@ def generate_html(calendar_data):
                 if entries:
                     content_items = []
                     for e in entries:
-                        # Link for each entry
-                        e_id = e["id"]
-                        link_url = f"{base_db_url}?p={e_id}&pm=s"
-                        item_html = f'<div class="entry-item"><a href="{link_url}" target="_blank" class="entry-link">{e["display"]}</a></div>'
+                        # Just text, no link
+                        item_html = f'<div class="entry-item">{e["display"]}</div>'
                         content_items.append(item_html)
                     
                     content_html = "".join(content_items)
