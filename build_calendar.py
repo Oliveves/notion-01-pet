@@ -48,14 +48,34 @@ def parse_data(results):
         props = page.get("properties", {})
         page_id = page.get("id").replace("-", "")
         
-        # Date
-        date_prop = props.get("날짜", {}).get("date", {})
+        # Find Date Property
+        date_candidates = ["날짜", "Date", "증상 발견 일시"]
+        date_prop = None
+        for key in date_candidates:
+            if key in props:
+                date_prop = props[key].get("date")
+                if date_prop: break
+        
         if not date_prop: continue
         date_str = date_prop.get("start")
         if not date_str: continue
+        date_str = date_str[:10] # YYYY-MM-DD
         
-        # Title (Name)
-        title_list = props.get("이름", {}).get("title", [])
+        # Find Title Property
+        title_candidates = ["이름", "Name", "Problem", "제목"]
+        title_list = []
+        for key in title_candidates:
+            if key in props and props[key].get("type") == "title":
+                title_list = props[key].get("title", [])
+                break
+        
+        # Fallback if no specific title found, try any title type
+        if not title_list:
+            for key, val in props.items():
+                if val.get("type") == "title":
+                    title_list = val.get("title", [])
+                    break
+                    
         title = "".join([t.get("plain_text", "") for t in title_list])
         if not title: title = "Untitled"
         
