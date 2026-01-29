@@ -110,7 +110,7 @@ def generate_html(calendar_data):
             align-items: center;
         }
         h1 { 
-            margin-bottom: 20px; 
+            margin-bottom: 10px; 
             font-size: 0.9em; 
             font-weight: bold; 
             width: 100%;
@@ -127,6 +127,7 @@ def generate_html(calendar_data):
         }
         
         .day-header {
+            font-family: Arial, sans-serif;
             text-align: center;
             font-size: 0.8em;
             color: #999;
@@ -144,7 +145,7 @@ def generate_html(calendar_data):
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 0.75em;
+            font-size: 0.7em;
             font-weight: bold;
         }
         
