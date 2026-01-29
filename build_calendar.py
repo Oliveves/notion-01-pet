@@ -247,7 +247,7 @@ def generate_html(calendar_data):
 
         /* Green Underline for dates with entries */
         .has-entry .day-number {
-            border-bottom: 3px solid #4CAF50;
+            border-bottom: 3px solid #81C784;
             padding-bottom: 2px;
             display: inline-block;
             line-height: 1.2;
