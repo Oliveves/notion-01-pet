@@ -212,6 +212,7 @@ def generate_html(calendar_data):
         }
         
         /* Valid Entry Indicator dot */
+        /* Valid Entry Indicator dot */
         .has-entry::after {
             content: '';
             position: absolute;
@@ -222,6 +223,17 @@ def generate_html(calendar_data):
             border-radius: 50%;
         }
         
+        /* Link styling */
+        .day-link {
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            width: 100%;
+            height: 100%;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
     </style>
     """
     
@@ -246,6 +258,10 @@ def generate_html(calendar_data):
             <div class="day-header">Sat</div>
     """
     
+    # Database URL (Hardcoded for now as it matches db_id)
+    # db_id = "2f50d907-031e-800a-82db-e4ca63b42e6e"
+    db_url = "https://www.notion.so/2f50d907031e800a82dbe4ca63b42e6e"
+
     for week in month_days:
         for day in week:
             if day == 0:
@@ -267,8 +283,10 @@ def generate_html(calendar_data):
 
                 html += f"""
                 <div class="{classes}">
-                    {day}
-                    {tooltip_html}
+                    <a href="{db_url}" class="day-link" target="_blank">
+                        {day}
+                        {tooltip_html}
+                    </a>
                 </div>
                 """
                 
