@@ -109,7 +109,7 @@ def generate_html(calendar_data):
             flex-direction: column;
             align-items: center;
         }
-        h1 { margin-bottom: 20px; font-size: 1.5em; font-weight: 600; }
+        h1 { margin-bottom: 20px; font-size: 1.25em; font-weight: bold; }
         
         .calendar-grid {
             display: grid;
@@ -138,7 +138,7 @@ def generate_html(calendar_data):
             justify-content: center;
             align-items: center;
             font-size: 1em;
-            font-weight: 500;
+            font-weight: bold;
         }
         
         .day-cell:hover {
@@ -153,9 +153,9 @@ def generate_html(calendar_data):
         }
         
         .today {
-            background: #ebf5fe;
-            color: #0b6e99;
-            box-shadow: 0 0 0 1px #0b6e99;
+            background: #edf9ee;
+            color: #1b5e20;
+            box-shadow: 0 0 0 1px #1b5e20;
         }
         
         /* Tooltip */
