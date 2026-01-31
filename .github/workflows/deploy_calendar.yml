@@ -31,7 +31,7 @@ jobs:
 
     - name: Build Calendar HTML
       env:
-        NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        NOTION_TOKEN: ${{ secrets.AUTOBOT_TOKEN }}
       run: python build_calendar.py
 
     - name: Deploy to GitHub Pages
