@@ -464,7 +464,9 @@ def main():
             print("Fetching Notion data...")
             try:
                 raw_data = fetch_health_log(token, db_id)
-                print(f"Fetched {len(raw_data)} entries.")
+                if not raw_data:
+                     print("DEBUG: Database is empty or no permissions to view children.")
+                     error_msg = "No Data Found (Empty DB)"
                 
             except Exception as e:
                 print(f"Error executing fetch: {e}")
