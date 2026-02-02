@@ -260,11 +260,11 @@ def generate_interactive_html(calendar_data):
             }}
             .day-number {{ pointer-events: none; }}
 
-            .nav-container {
+            .nav-container {{
                 display: flex;
                 align-items: center;
                 gap: 2px;
-            }
+            }}
         </style>
     </head>
     <body>
@@ -293,7 +293,7 @@ def generate_interactive_html(calendar_data):
                 
                 // Update Header
                 const monthName = monthNames[month];
-                document.getElementById('monthLabel').innerText = `${year} ${monthName}`;
+                document.getElementById('monthLabel').innerText = `${{year}} ${{monthName}}`;
                 
                 // Calculate Grid
                 const firstDay = new Date(year, month, 1);
@@ -394,16 +394,18 @@ def main():
     # Health Log ID (Pet)
     db_id = "2f50d907-031e-800a-82db-e4ca63b42e6e"
     
+    raw_data = []
     if not token:
-        print("Notion token missing.")
-        # Try to read locally if missing (optional fallback?)
-        # For now, just exit or similar
-        sys.exit(1)
-        
-    print("Fetching Notion data...")
-    raw_data = fetch_health_log(token, db_id)
-    print(f"Fetched {len(raw_data)} entries.")
-    
+        print("WARNING: Notion token missing. Generating empty calendar.")
+        # Do not exit; proceed to generate HTML with empty data
+    else:
+        print("Fetching Notion data...")
+        try:
+            raw_data = fetch_health_log(token, db_id)
+            print(f"Fetched {len(raw_data)} entries.")
+        except Exception as e:
+            print(f"Error executing fetch: {e}")
+
     print("Parsing data...")
     calendar_data = parse_data(raw_data)
     
