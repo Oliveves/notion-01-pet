@@ -96,15 +96,8 @@ def parse_data(results):
     return calendar_data
 
 def generate_html(calendar_data):
-    # Current Month
-    today = datetime.date.today()
-    year = today.year
-    month = today.month
-    
-    cal = calendar.Calendar(firstweekday=6) # Sunday start
-    month_days = cal.monthdayscalendar(year, month)
-    
-    month_name = datetime.date(year, month, 1).strftime("%B %Y")
+    # Convert data to JSON for embedding
+    json_data = json.dumps(calendar_data, ensure_ascii=False)
     
     # CSS
     css = """
@@ -129,14 +122,33 @@ def generate_html(calendar_data):
             flex-direction: column;
             align-items: center;
         }
+        
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 10px;
+        }
+
         h1 { 
-            margin-top: 0; 
-            margin-bottom: 10px; 
-            font-size: 0.9em; 
+            margin: 0; 
+            font-size: 1.0em; 
             font-weight: bold; 
-            width: 100%; 
-            max-width: 600px; 
-            text-align: left; 
+            text-align: center;
+        }
+        
+        button {
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 1.2em;
+            color: #555;
+            padding: 0 10px;
+        }
+        button:hover {
+            color: #000;
         }
         
         .calendar-grid {
@@ -198,14 +210,14 @@ def generate_html(calendar_data):
             z-index: 1000;
             bottom: 125%; 
             left: 50%;
-            transform: translateX(-50%); /* Center horizontally */
+            transform: translateX(-50%);
             width: max-content;
-            max-width: 300px;
+            max-width: 250px;
             opacity: 0;
             transition: opacity 0.3s;
             font-size: 0.8em;
             font-weight: normal;
-            pointer-events: auto; /* Enable clicks inside tooltip */
+            pointer-events: auto;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             white-space: normal;
         }
@@ -233,18 +245,6 @@ def generate_html(calendar_data):
             margin-bottom: 0;
         }
         
-        /* Tooltip Links */
-        .entry-link {
-            color: #fff;
-            text-decoration: none;
-            display: inline-block;
-            border-bottom: 1px dotted #aaa;
-            transition: border-bottom 0.2s;
-        }
-        .entry-link:hover {
-            border-bottom: 1px solid #fff;
-        }
-
         /* Green Underline for dates with entries */
         .has-entry .day-number {
             border-bottom: 3px solid #81C784;
@@ -253,9 +253,8 @@ def generate_html(calendar_data):
             line-height: 1.2;
         }
         
-        /* Day Number styling */
         .day-number {
-             pointer-events: none; /* numbers themselves unclickable */
+             pointer-events: none;
         }
     </style>
     """
@@ -270,8 +269,14 @@ def generate_html(calendar_data):
         {css}
     </head>
     <body>
-        <h1>{month_name}</h1>
-        <div class="calendar-grid">
+        <div class="header-container">
+            <button id="prevBtn" onclick="changeMonth(-1)">&#10094;</button>
+            <h1 id="monthLabel">Month Year</h1>
+            <button id="nextBtn" onclick="changeMonth(1)">&#10095;</button>
+        </div>
+        
+        <div class="calendar-grid" id="calendarGrid">
+            <!-- Headers -->
             <div class="day-header">Sun</div>
             <div class="day-header">Mon</div>
             <div class="day-header">Tue</div>
@@ -279,46 +284,88 @@ def generate_html(calendar_data):
             <div class="day-header">Thu</div>
             <div class="day-header">Fri</div>
             <div class="day-header">Sat</div>
-    """
-    
-    # Database URL
-    db_id_clean = "2f50d907031e800a82dbe4ca63b42e6e"
-    base_db_url = f"https://www.notion.so/{db_id_clean}"
-
-    for week in month_days:
-        for day in week:
-            if day == 0:
-                html += '<div class="day-cell empty"></div>'
-            else:
-                date_str = f"{year}-{month:02d}-{day:02d}"
-                entries = calendar_data.get(date_str, [])
-                
-                classes = "day-cell"
-                if date_str == str(today): classes += " today"
-                if entries: classes += " has-entry"
-                
-                tooltip_html = ""
-                if entries:
-                    content_items = []
-                    for e in entries:
-                        # Just text, no link
-                        item_html = f'<div class="entry-item">{e["display"]}</div>'
-                        content_items.append(item_html)
-                    
-                    content_html = "".join(content_items)
-                    tooltip_html = f'<div class="tooltip">{content_html}</div>'
-                elif day > 0:
-                     tooltip_html = f'<div class="tooltip">No Info</div>'
-
-                html += f"""
-                <div class="{classes}">
-                    <span class="day-number">{day}</span>
-                    {tooltip_html}
-                </div>
-                """
-                
-    html += """
         </div>
+
+        <script>
+            // Derived from Notion Data through build_calendar.py
+            const calendarData = {json_data};
+            
+            let currentDate = new Date(); // Defaults to today/current month
+
+            function renderCalendar() {{
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth(); // 0-based
+                
+                // Update Header
+                const monthNames = ["January", "February", "March", "April", "May", "June", 
+                                    "July", "August", "September", "October", "November", "December"];
+                document.getElementById('monthLabel').innerText = `${{monthNames[month]}} ${{year}}`;
+                
+                const grid = document.getElementById('calendarGrid');
+                
+                // Clear old day cells (keep first 7 headers)
+                // Using a strategy to remove all elements after the 7th
+                while(grid.children.length > 7) {{
+                    grid.removeChild(grid.lastChild);
+                }}
+
+                // Calculate geometry
+                const firstDayObj = new Date(year, month, 1);
+                const startDay = firstDayObj.getDay(); // 0(Sun) - 6(Sat)
+                
+                const lastDayObj = new Date(year, month + 1, 0);
+                const daysInMonth = lastDayObj.getDate();
+
+                // Generate Empty Cells for padding
+                for(let i=0; i<startDay; i++) {{
+                    const div = document.createElement('div');
+                    div.className = 'day-cell empty';
+                    grid.appendChild(div);
+                }}
+
+                // Generate Date Cells
+                const today = new Date();
+                const isCurrentMonth = (today.getFullYear() === year && today.getMonth() === month);
+
+                for(let d=1; d<=daysInMonth; d++) {{
+                    const mStr = String(month + 1).padStart(2, '0');
+                    const dStr = String(d).padStart(2, '0');
+                    const dateStr = `${{year}}-${{mStr}}-${{dStr}}`;
+                    
+                    const entries = calendarData[dateStr] || [];
+                    
+                    const cell = document.createElement('div');
+                    let className = 'day-cell';
+                    if (isCurrentMonth && d === today.getDate()) className += ' today';
+                    if (entries.length > 0) className += ' has-entry';
+                    cell.className = className;
+                    
+                    let innerHtml = `<span class="day-number">${{d}}</span>`;
+                    
+                    if (entries.length > 0) {{
+                        let tipHtml = '<div class="tooltip">';
+                        entries.forEach(e => {{
+                            tipHtml += `<div class="entry-item">${{e.display}}</div>`;
+                        }});
+                        tipHtml += '</div>';
+                        innerHtml += tipHtml;
+                    }} else {{
+                        innerHtml += '<div class="tooltip">No Info</div>';
+                    }}
+                    
+                    cell.innerHTML = innerHtml;
+                    grid.appendChild(cell);
+                }}
+            }}
+
+            function changeMonth(delta) {{
+                currentDate.setMonth(currentDate.getMonth() + delta);
+                renderCalendar();
+            }}
+
+            // Start
+            renderCalendar();
+        </script>
     </body>
     </html>
     """
