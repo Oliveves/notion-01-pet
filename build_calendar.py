@@ -39,11 +39,40 @@ def fetch_health_log(token, db_id):
         
     return results
 
-def parse_data(results):
+def find_health_log_id(token):
+    url = "https://api.notion.com/v1/search"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Notion-Version": "2022-06-28"
+    }
+    payload = {
+        "query": "Health Log",
+        "filter": {
+            "value": "database",
+            "property": "object"
+        },
+        "page_size": 1
+    }
+    
+    try:
+        res = requests.post(url, headers=headers, json=payload)
+        if res.status_code == 200:
+            results = res.json().get("results", [])
+            if results:
+                found_id = results[0]["id"]
+                print(f"Observed 'Health Log' ID: {found_id}")
+                return found_id
+    except Exception as e:
+        print(f"Error searching for DB: {e}")
+        
+    return "2f50d907-031e-800a-82db-e4ca63b42e6e" # Fallback to hardcoded
+
+def parse_data(raw_data):
     # Map "YYYY-MM-DD" -> List of entries (dicts)
     calendar_data = {}
     
-    for page in results:
+    for page in raw_data:
         props = page.get("properties", {})
         page_id = page.get("id").replace("-", "")
         
@@ -400,8 +429,6 @@ def generate_interactive_html(calendar_data, error_message=None):
 
 def main():
     token = os.environ.get("NOTION_TOKEN")
-    # Health Log ID (Pet)
-    db_id = "2f50d907-031e-800a-82db-e4ca63b42e6e"
     
     raw_data = []
     error_msg = None
@@ -410,6 +437,10 @@ def main():
         print("WARNING: Notion token missing. Generating empty calendar.")
         error_msg = "Token Missing"
     else:
+        # Dynamically find Health Log ID
+        db_id = find_health_log_id(token)
+        print(f"Using Database ID: {db_id}")
+        
         print("Fetching Notion data...")
         try:
             raw_data = fetch_health_log(token, db_id)
