@@ -125,30 +125,36 @@ def generate_html(calendar_data):
         
         .header-container {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            align-items: center; /* Vertically center */
+            justify-content: flex-start; /* Left align entire container */
             width: 100%;
             max-width: 600px;
             margin-bottom: 10px;
+            gap: 10px; /* Space between elements */
         }
 
         h1 { 
             margin: 0; 
             font-size: 1.0em; 
             font-weight: bold; 
-            text-align: center;
+            /* Remove text-align center or left specifics if flex handles it */
         }
         
         button {
             border: none;
             background: none;
             cursor: pointer;
-            font-size: 1.2em;
-            color: #555;
-            padding: 0 10px;
+            font-size: 0.9em; /* Smaller size as requested */
+            color: #999; /* Softer color */
+            padding: 0 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         button:hover {
-            color: #000;
+            color: #37352f;
+            background-color: rgba(55, 53, 47, 0.08); /* Notion-like hover */
+            border-radius: 3px;
         }
         
         .calendar-grid {
@@ -270,9 +276,9 @@ def generate_html(calendar_data):
     </head>
     <body>
         <div class="header-container">
-            <button id="prevBtn" onclick="changeMonth(-1)">&#10094;</button>
             <h1 id="monthLabel">Month Year</h1>
-            <button id="nextBtn" onclick="changeMonth(1)">&#10095;</button>
+            <button id="prevBtn" onclick="changeMonth(-1)">◀</button>
+            <button id="nextBtn" onclick="changeMonth(1)">▶</button>
         </div>
         
         <div class="calendar-grid" id="calendarGrid">
