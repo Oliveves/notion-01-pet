@@ -66,7 +66,7 @@ def find_health_log_id(token):
     except Exception as e:
         print(f"Error searching for DB: {e}")
         
-    return "2f50d907-031e-800a-82db-e4ca63b42e6e" # Fallback to hardcoded
+    return None
 
 def parse_data(raw_data):
     # Map "YYYY-MM-DD" -> List of entries (dicts)
@@ -76,22 +76,38 @@ def parse_data(raw_data):
         props = page.get("properties", {})
         page_id = page.get("id").replace("-", "")
         
-        # Find Date Property
-        date_candidates = ["날짜", "Date", "증상 발견 일시"]
-        date_prop = None
-        for key in date_candidates:
-            if key in props:
-                date_prop = props[key].get("date")
-                if date_prop: break
+        # Get DATE
+        date_prop = props.get("날짜") # Try '날짜' first
+        if not date_prop:
+            date_prop = props.get("Date") # Try 'Date'
+            
+        if not date_prop or date_prop["type"] != "date" or not date_prop["date"]:
+            continue
+            
+        start_date = date_prop["date"]["start"] # YYYY-MM-DD
         
-        if not date_prop: continue
-        date_str = date_prop.get("start")
-        if not date_str: continue
-        date_str = date_str[:10] # YYYY-MM-DD
         
         # Find Title Property
         title_candidates = ["이름", "Name", "Problem", "제목"]
         title_list = []
+        for key in title_candidates:
+            if key in props and props[key].get("type") == "title":
+                title_list = props[key].get("title", [])
+                break
+        
+        display_text = "Entry"
+        if title_list:
+            display_text = title_list[0].get("plain_text", "Entry")
+
+        if start_date not in calendar_data:
+            calendar_data[start_date] = []
+            
+        calendar_data[start_date].append({
+            "id": page_id,
+            "display": display_text
+        })
+        
+    return calendar_data
         for key in title_candidates:
             if key in props and props[key].get("type") == "title":
                 title_list = props[key].get("title", [])
@@ -439,19 +455,21 @@ def main():
     else:
         # Dynamically find Health Log ID
         db_id = find_health_log_id(token)
-        print(f"Using Database ID: {db_id}")
         
-        print("Fetching Notion data...")
-        try:
-            raw_data = fetch_health_log(token, db_id)
-            print(f"Fetched {len(raw_data)} entries.")
-            if not raw_data:
-                # If no data failure, but also no entries, usually just means empty DB.
-                # But to communicate connectivity to user:
-                pass 
-        except Exception as e:
-            print(f"Error executing fetch: {e}")
-            error_msg = f"Fetch Error: {str(e)[:20]}..."
+        if not db_id:
+            print("ERROR: 'Health Log' database not found.")
+            error_msg = "Health Log DB Not Found"
+        else:
+            print(f"Using Database ID: {db_id}")
+            print("Fetching Notion data...")
+            try:
+                raw_data = fetch_health_log(token, db_id)
+                print(f"Fetched {len(raw_data)} entries.")
+                if not raw_data:
+                    pass 
+            except Exception as e:
+                print(f"Error executing fetch: {e}")
+                error_msg = f"Fetch Error: {str(e)[:20]}..."
 
     print("Parsing data...")
     calendar_data = parse_data(raw_data)
