@@ -260,12 +260,17 @@ def generate_interactive_html(calendar_data):
             }}
             .day-number {{ pointer-events: none; }}
 
+            .nav-container {
+                display: flex;
+                align-items: center;
+                gap: 2px;
+            }
         </style>
     </head>
     <body>
         <div class="header-container">
             <h1 id="monthLabel">Loading...</h1>
-            <div>
+            <div class="nav-container">
                 <button class="nav-btn" id="prevBtn">◀</button>
                 <button class="nav-btn" id="nextBtn">▶</button>
             </div>
@@ -288,7 +293,7 @@ def generate_interactive_html(calendar_data):
                 
                 // Update Header
                 const monthName = monthNames[month];
-                document.getElementById('monthLabel').innerText = `${{monthName}} ${{year}}`;
+                document.getElementById('monthLabel').innerText = `${year} ${monthName}`;
                 
                 // Calculate Grid
                 const firstDay = new Date(year, month, 1);
