@@ -199,6 +199,7 @@ def generate_interactive_html(calendar_data, error_message=None):
                 text-align: left;
                 color: { 'red' if error_message else 'inherit' }; /* Highlight error */
             }}
+            /* v2.1 Debug Probe */
             
             .nav-btn {{
                 background: none;
@@ -344,7 +345,14 @@ def generate_interactive_html(calendar_data, error_message=None):
                 const month = currentDate.getMonth(); // 0-11
                 
                 // Update Header if no error
-                if (!document.getElementById('monthLabel').innerText.startsWith("Error") && !document.getElementById('monthLabel').innerText.startsWith("Token")) {{
+                const currentTitle = document.getElementById('monthLabel').innerText;
+                const isError = currentTitle.startsWith("Error") || 
+                                currentTitle.startsWith("Token") || 
+                                currentTitle.startsWith("Keys") || 
+                                currentTitle.startsWith("No Data") ||
+                                currentTitle.startsWith("Fetch");
+                                
+                if (!isError) {{
                      const monthName = monthNames[month];
                      document.getElementById('monthLabel').innerText = `${{year}} ${{monthName}}`;
                 }}
