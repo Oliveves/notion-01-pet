@@ -465,14 +465,21 @@ def main():
             try:
                 raw_data = fetch_health_log(token, db_id)
                 print(f"Fetched {len(raw_data)} entries.")
-                if not raw_data:
-                    pass 
+                
             except Exception as e:
                 print(f"Error executing fetch: {e}")
                 error_msg = f"Fetch Error: {str(e)[:20]}..."
 
     print("Parsing data...")
     calendar_data = parse_data(raw_data)
+    
+    # DEBUG: If raw data exists but calendar is empty, it's a parsing issue.
+    # Show the available keys to the user.
+    if not error_msg and raw_data and not calendar_data:
+        first_props = raw_data[0].get("properties", {}).keys()
+        props_str = ", ".join(first_props)
+        print(f"DEBUG: Parse failed. Available keys: {props_str}")
+        error_msg = f"Keys: {props_str[:50]}..." # Truncate for header
     
     print("Generating HTML...")
     html_content = generate_interactive_html(calendar_data, error_msg)
