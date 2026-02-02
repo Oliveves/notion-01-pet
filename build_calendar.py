@@ -2,7 +2,6 @@ import os
 import requests
 import json
 import datetime
-import calendar
 import sys
 
 # Force UTF-8 encoding for stdout/stderr to handle emojis on all platforms
@@ -81,7 +80,7 @@ def parse_data(results):
         
         # Icon?
         icon = page.get("icon", {})
-        emoji = icon.get("emoji") if icon.get("type") == "emoji" else "📝"
+        emoji = icon.get("emoji") if icon and icon.get("type") == "emoji" else "📝"
         
         if date_str not in calendar_data:
             calendar_data[date_str] = []
@@ -95,170 +94,9 @@ def parse_data(results):
         
     return calendar_data
 
-def generate_html(calendar_data):
-    # Current Month
-    today = datetime.date.today()
-    year = today.year
-    month = today.month
-    
-    cal = calendar.Calendar(firstweekday=6) # Sunday start
-    month_days = cal.monthdayscalendar(year, month)
-    
-    month_name = datetime.date(year, month, 1).strftime("%B %Y")
-    
-    # CSS
-    css = """
-    <style>
-        /* Hide scrollbar */
-        ::-webkit-scrollbar { display: none; }
-        html { -ms-overflow-style: none; scrollbar-width: none; }
-
-        :root {
-            --bg-color: #ffffff;
-            --text-color: #37352f;
-            --grid-border: #e0e0e0;
-            --hover-bg: #f7f7f5;
-        }
-        body {
-            font-family: "Courier New", Courier, monospace;
-            margin: 0;
-            padding: 12px 20px 20px 20px;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        h1 { 
-            margin-top: 0; 
-            margin-bottom: 10px; 
-            font-size: 0.9em; 
-            font-weight: bold; 
-            width: 100%; 
-            max-width: 600px; 
-            text-align: left; 
-        }
-        
-        .calendar-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 8px;
-            width: 100%;
-            max-width: 600px;
-        }
-        
-        .day-header {
-            text-align: center;
-            font-size: 0.8em;
-            color: #999;
-            padding-bottom: 8px;
-        }
-        
-        .day-cell {
-            aspect-ratio: 1 / 1;
-            border-radius: 8px;
-            background: #fff;
-            box-shadow: 0 0 0 1px var(--grid-border);
-            position: relative;
-            cursor: pointer;
-            transition: background 0.2s;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 0.85em;
-            font-weight: bold;
-        }
-        
-        .day-cell:hover {
-            background: var(--hover-bg);
-            z-index: 10;
-        }
-        
-        .day-cell.empty {
-            background: transparent;
-            box-shadow: none;
-            cursor: default;
-        }
-        
-        .today {
-            background: #edf9ee;
-            color: #1b5e20;
-            box-shadow: 0 0 0 1px #1b5e20;
-        }
-        
-        /* Tooltip */
-        .tooltip {
-            visibility: hidden;
-            background-color: #333;
-            color: #fff;
-            text-align: left;
-            border-radius: 6px;
-            padding: 8px 12px;
-            position: absolute;
-            z-index: 1000;
-            bottom: 125%; 
-            left: 50%;
-            transform: translateX(-50%); /* Center horizontally */
-            width: max-content;
-            max-width: 300px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            font-size: 0.8em;
-            font-weight: normal;
-            pointer-events: auto; /* Enable clicks inside tooltip */
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            white-space: normal;
-        }
-        
-        .tooltip::after {
-            content: "";
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
-            border-style: solid;
-            border-color: #333 transparent transparent transparent;
-        }
-        
-        .day-cell:hover .tooltip {
-            visibility: visible;
-            opacity: 1;
-        }
-        
-        .entry-item {
-            margin-bottom: 4px;
-        }
-        .entry-item:last-child {
-            margin-bottom: 0;
-        }
-        
-        /* Tooltip Links */
-        .entry-link {
-            color: #fff;
-            text-decoration: none;
-            display: inline-block;
-            border-bottom: 1px dotted #aaa;
-            transition: border-bottom 0.2s;
-        }
-        .entry-link:hover {
-            border-bottom: 1px solid #fff;
-        }
-
-        /* Green Underline for dates with entries */
-        .has-entry .day-number {
-            border-bottom: 3px solid #81C784;
-            padding-bottom: 2px;
-            display: inline-block;
-            line-height: 1.2;
-        }
-        
-        /* Day Number styling */
-        .day-number {
-             pointer-events: none; /* numbers themselves unclickable */
-        }
-    </style>
-    """
+def generate_interactive_html(calendar_data):
+    # Pass data as JSON
+    data_json = json.dumps(calendar_data)
     
     html = f"""
     <!DOCTYPE html>
@@ -267,58 +105,285 @@ def generate_html(calendar_data):
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Milk's Month</title>
-        {css}
+        <style>
+            ::-webkit-scrollbar {{ display: none; }}
+            html {{ -ms-overflow-style: none; scrollbar-width: none; }}
+            
+            :root {{
+                --bg-color: #ffffff;
+                --text-color: #37352f;
+                --grid-border: #e0e0e0;
+                --hover-bg: #f7f7f5;
+                /* Pet Theme Colors */
+                --today-bg: #edf9ee;
+                --today-text: #1b5e20;
+                --underline-color: #81C784;
+            }}
+            body {{
+                font-family: "Courier New", Courier, monospace;
+                margin: 0;
+                padding: 12px 20px 20px 20px;
+                background-color: var(--bg-color);
+                color: var(--text-color);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                user-select: none;
+            }}
+            
+            .header-container {{
+                display: flex;
+                justify-content: flex-start; /* Align left */
+                align-items: center;
+                gap: 15px; /* Space between title and buttons */
+                width: 100%;
+                max-width: 600px;
+                margin-bottom: 10px;
+            }}
+            
+            h1 {{
+                margin: 0;
+                font-size: 0.9em; 
+                font-weight: bold; 
+                text-align: left;
+            }}
+            
+            .nav-btn {{
+                background: none;
+                border: 1px solid transparent;
+                cursor: pointer;
+                font-family: "Courier New", Courier, monospace;
+                font-size: 0.5em; /* Adjusted to 0.5em as requested */
+                color: #999;
+                padding: 0 1px; /* Tighter spacing */
+                border-radius: 4px;
+                transition: color 0.2s, background 0.2s;
+            }}
+            .nav-btn:hover {{
+                color: #333;
+                background: #f0f0f0;
+            }}
+            
+            .calendar-grid {{
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                gap: 8px;
+                width: 100%;
+                max-width: 600px;
+            }}
+            
+            .day-header {{
+                text-align: center;
+                font-size: 0.8em;
+                color: #999;
+                padding-bottom: 8px;
+            }}
+            
+            .day-cell {{
+                aspect-ratio: 1 / 1;
+                border-radius: 8px;
+                background: #fff;
+                box-shadow: 0 0 0 1px var(--grid-border);
+                position: relative;
+                cursor: pointer;
+                transition: background 0.2s;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                font-size: 0.85em;
+                font-weight: bold;
+            }}
+            
+            .day-cell:hover {{
+                background: var(--hover-bg);
+                z-index: 10;
+            }}
+            
+            .day-cell.empty {{
+                background: transparent;
+                box-shadow: none;
+                cursor: default;
+            }}
+            
+            .day-cell.today {{
+                background: var(--today-bg);
+                color: var(--today-text);
+                box-shadow: 0 0 0 1px var(--today-text);
+            }}
+
+            .tooltip {{
+                visibility: hidden;
+                background-color: #333;
+                color: #fff;
+                text-align: left;
+                border-radius: 6px;
+                padding: 8px 12px;
+                position: absolute;
+                z-index: 1000;
+                bottom: 125%; 
+                left: 50%;
+                transform: translateX(-50%);
+                width: max-content;
+                max-width: 300px;
+                opacity: 0;
+                transition: opacity 0.3s;
+                font-size: 0.8em;
+                font-weight: normal;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                white-space: normal;
+            }}
+            
+            .tooltip::after {{
+                content: "";
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                margin-left: -5px;
+                border-width: 5px;
+                border-style: solid;
+                border-color: #333 transparent transparent transparent;
+            }}
+            
+            .day-cell:hover .tooltip {{
+                visibility: visible;
+                opacity: 1;
+            }}
+            
+            .entry-item {{ margin-bottom: 4px; }}
+            .entry-item:last-child {{ margin-bottom: 0; }}
+
+            .has-entry .day-number {{
+                border-bottom: 3px solid var(--underline-color);
+                padding-bottom: 2px;
+                display: inline-block;
+                line-height: 1.2;
+            }}
+            .day-number {{ pointer-events: none; }}
+
+            .nav-container {{
+                display: flex;
+                align-items: center;
+                gap: 2px;
+            }}
+        </style>
     </head>
     <body>
-        <h1>{month_name}</h1>
-        <div class="calendar-grid">
-            <div class="day-header">Sun</div>
-            <div class="day-header">Mon</div>
-            <div class="day-header">Tue</div>
-            <div class="day-header">Wed</div>
-            <div class="day-header">Thu</div>
-            <div class="day-header">Fri</div>
-            <div class="day-header">Sat</div>
-    """
-    
-    # Database URL
-    db_id_clean = "2f50d907031e800a82dbe4ca63b42e6e"
-    base_db_url = f"https://www.notion.so/{db_id_clean}"
-
-    for week in month_days:
-        for day in week:
-            if day == 0:
-                html += '<div class="day-cell empty"></div>'
-            else:
-                date_str = f"{year}-{month:02d}-{day:02d}"
-                entries = calendar_data.get(date_str, [])
-                
-                classes = "day-cell"
-                if date_str == str(today): classes += " today"
-                if entries: classes += " has-entry"
-                
-                tooltip_html = ""
-                if entries:
-                    content_items = []
-                    for e in entries:
-                        # Just text, no link
-                        item_html = f'<div class="entry-item">{e["display"]}</div>'
-                        content_items.append(item_html)
-                    
-                    content_html = "".join(content_items)
-                    tooltip_html = f'<div class="tooltip">{content_html}</div>'
-                elif day > 0:
-                     tooltip_html = f'<div class="tooltip">No Info</div>'
-
-                html += f"""
-                <div class="{classes}">
-                    <span class="day-number">{day}</span>
-                    {tooltip_html}
-                </div>
-                """
-                
-    html += """
+        <div class="header-container">
+            <h1 id="monthLabel">Loading...</h1>
+            <div class="nav-container">
+                <button class="nav-btn" id="prevBtn">◀</button>
+                <button class="nav-btn" id="nextBtn">▶</button>
+            </div>
         </div>
+        
+        <div class="calendar-grid" id="calendarGrid">
+            <!-- Headers and Days inserted by JS -->
+        </div>
+
+        <script>
+            const eventData = {data_json};
+            let currentDate = new Date(); // Defaults to today on client side
+
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+            function renderCalendar() {{
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth(); // 0-11
+                
+                // Update Header
+                const monthName = monthNames[month];
+                document.getElementById('monthLabel').innerText = `${{year}} ${{monthName}}`;
+                
+                // Calculate Grid
+                const firstDay = new Date(year, month, 1);
+                const lastDay = new Date(year, month + 1, 0); // Last day of current month
+                
+                const numDays = lastDay.getDate();
+                const startDayOfWeek = firstDay.getDay(); // 0 (Sun) - 6 (Sat)
+                
+                const grid = document.getElementById('calendarGrid');
+                grid.innerHTML = ''; // Clear previous
+                
+                // Day Headers
+                const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+                days.forEach(d => {{
+                    const el = document.createElement('div');
+                    el.className = 'day-header';
+                    el.innerText = d;
+                    grid.appendChild(el);
+                }});
+                
+                // Empty cells before start
+                for (let i = 0; i < startDayOfWeek; i++) {{
+                    const el = document.createElement('div');
+                    el.className = 'day-cell empty';
+                    grid.appendChild(el);
+                }}
+                
+                // Days
+                const today = new Date();
+                const isCurrentMonth = (today.getFullYear() === year && today.getMonth() === month);
+                const todayDate = today.getDate();
+                
+                for (let d = 1; d <= numDays; d++) {{
+                    const cell = document.createElement('div');
+                    cell.className = 'day-cell';
+                    
+                    // construct YYYY-MM-DD string with padding
+                    const mStr = String(month + 1).padStart(2, '0');
+                    const dStr = String(d).padStart(2, '0');
+                    const dateKey = `${{year}}-${{mStr}}-${{dStr}}`;
+                    
+                    const entries = eventData[dateKey] || [];
+                    
+                    if (isCurrentMonth && d === todayDate) {{
+                        cell.classList.add('today');
+                    }}
+                    
+                    if (entries.length > 0) {{
+                        cell.classList.add('has-entry');
+                        
+                        // Create Tooltip
+                        let tooltipContent = '';
+                        entries.forEach(e => {{
+                            tooltipContent += `<div class="entry-item">${{e.display}}</div>`;
+                        }});
+                        
+                        const tooltip = document.createElement('div');
+                        tooltip.className = 'tooltip';
+                        tooltip.innerHTML = tooltipContent;
+                        cell.appendChild(tooltip);
+                    }} else {{
+                         const tooltip = document.createElement('div');
+                         tooltip.className = 'tooltip';
+                         tooltip.innerText = 'No Info';
+                         cell.appendChild(tooltip);
+                    }}
+                    
+                    const numSpan = document.createElement('span');
+                    numSpan.className = 'day-number';
+                    numSpan.innerText = d;
+                    cell.appendChild(numSpan);
+                    
+                    grid.appendChild(cell);
+                }}
+            }}
+
+            // Event Listeners
+            document.getElementById('prevBtn').addEventListener('click', () => {{
+                currentDate.setMonth(currentDate.getMonth() - 1);
+                renderCalendar();
+            }});
+            
+            document.getElementById('nextBtn').addEventListener('click', () => {{
+                currentDate.setMonth(currentDate.getMonth() + 1);
+                renderCalendar();
+            }});
+            
+            // Initial Render
+            renderCalendar();
+        </script>
     </body>
     </html>
     """
@@ -326,22 +391,26 @@ def generate_html(calendar_data):
 
 def main():
     token = os.environ.get("NOTION_TOKEN")
-    # Health Log ID
+    # Health Log ID (Pet)
     db_id = "2f50d907-031e-800a-82db-e4ca63b42e6e"
     
+    raw_data = []
     if not token:
-        print("Notion token missing.")
-        sys.exit(1)
-        
-    print("Fetching Notion data...")
-    raw_data = fetch_health_log(token, db_id)
-    print(f"Fetched {len(raw_data)} entries.")
-    
+        print("WARNING: Notion token missing. Generating empty calendar.")
+        # Do not exit; proceed to generate HTML with empty data
+    else:
+        print("Fetching Notion data...")
+        try:
+            raw_data = fetch_health_log(token, db_id)
+            print(f"Fetched {len(raw_data)} entries.")
+        except Exception as e:
+            print(f"Error executing fetch: {e}")
+
     print("Parsing data...")
     calendar_data = parse_data(raw_data)
     
     print("Generating HTML...")
-    html_content = generate_html(calendar_data)
+    html_content = generate_interactive_html(calendar_data)
     
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_content)
