@@ -94,9 +94,14 @@ def parse_data(results):
         
     return calendar_data
 
-def generate_interactive_html(calendar_data):
+def generate_interactive_html(calendar_data, error_message=None):
     # Pass data as JSON
     data_json = json.dumps(calendar_data)
+    
+    # Determine header text
+    header_text = "Loading..."
+    if error_message:
+        header_text = error_message
     
     html = f"""
     <!DOCTYPE html>
@@ -106,6 +111,7 @@ def generate_interactive_html(calendar_data):
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Milk's Month</title>
         <style>
+            /* ... (keep existing CSS) ... */
             ::-webkit-scrollbar {{ display: none; }}
             html {{ -ms-overflow-style: none; scrollbar-width: none; }}
             
@@ -146,6 +152,7 @@ def generate_interactive_html(calendar_data):
                 font-size: 0.9em; 
                 font-weight: bold; 
                 text-align: left;
+                color: { 'red' if error_message else 'inherit' }; /* Highlight error */
             }}
             
             .nav-btn {{
@@ -269,7 +276,7 @@ def generate_interactive_html(calendar_data):
     </head>
     <body>
         <div class="header-container">
-            <h1 id="monthLabel">Loading...</h1>
+            <h1 id="monthLabel">{header_text}</h1>
             <div class="nav-container">
                 <button class="nav-btn" id="prevBtn">◀</button>
                 <button class="nav-btn" id="nextBtn">▶</button>
@@ -291,9 +298,11 @@ def generate_interactive_html(calendar_data):
                 const year = currentDate.getFullYear();
                 const month = currentDate.getMonth(); // 0-11
                 
-                // Update Header
-                const monthName = monthNames[month];
-                document.getElementById('monthLabel').innerText = `${{year}} ${{monthName}}`;
+                // Update Header if no error
+                if (!document.getElementById('monthLabel').innerText.startsWith("Error") && !document.getElementById('monthLabel').innerText.startsWith("Token")) {{
+                     const monthName = monthNames[month];
+                     document.getElementById('monthLabel').innerText = `${{year}} ${{monthName}}`;
+                }}
                 
                 // Calculate Grid
                 const firstDay = new Date(year, month, 1);
@@ -395,22 +404,29 @@ def main():
     db_id = "2f50d907-031e-800a-82db-e4ca63b42e6e"
     
     raw_data = []
+    error_msg = None
+    
     if not token:
         print("WARNING: Notion token missing. Generating empty calendar.")
-        # Do not exit; proceed to generate HTML with empty data
+        error_msg = "Token Missing"
     else:
         print("Fetching Notion data...")
         try:
             raw_data = fetch_health_log(token, db_id)
             print(f"Fetched {len(raw_data)} entries.")
+            if not raw_data:
+                # If no data failure, but also no entries, usually just means empty DB.
+                # But to communicate connectivity to user:
+                pass 
         except Exception as e:
             print(f"Error executing fetch: {e}")
+            error_msg = f"Fetch Error: {str(e)[:20]}..."
 
     print("Parsing data...")
     calendar_data = parse_data(raw_data)
     
     print("Generating HTML...")
-    html_content = generate_interactive_html(calendar_data)
+    html_content = generate_interactive_html(calendar_data, error_msg)
     
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_content)

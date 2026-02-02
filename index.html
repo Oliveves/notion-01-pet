@@ -6,6 +6,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Milk's Month</title>
         <style>
+            /* ... (keep existing CSS) ... */
             ::-webkit-scrollbar { display: none; }
             html { -ms-overflow-style: none; scrollbar-width: none; }
             
@@ -46,6 +47,7 @@
                 font-size: 0.9em; 
                 font-weight: bold; 
                 text-align: left;
+                color: inherit; /* Highlight error */
             }
             
             .nav-btn {
@@ -191,9 +193,11 @@
                 const year = currentDate.getFullYear();
                 const month = currentDate.getMonth(); // 0-11
                 
-                // Update Header
-                const monthName = monthNames[month];
-                document.getElementById('monthLabel').innerText = `${year} ${monthName}`;
+                // Update Header if no error
+                if (!document.getElementById('monthLabel').innerText.startsWith("Error") && !document.getElementById('monthLabel').innerText.startsWith("Token")) {
+                     const monthName = monthNames[month];
+                     document.getElementById('monthLabel').innerText = `${year} ${monthName}`;
+                }
                 
                 // Calculate Grid
                 const firstDay = new Date(year, month, 1);
