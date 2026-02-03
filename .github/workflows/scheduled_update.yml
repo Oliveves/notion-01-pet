@@ -5,6 +5,9 @@ on:
     # 매일 한국 시간 00:00 (UTC 15:00)에 실행
     - cron: '0 15 * * *'
   workflow_dispatch:  # 수동 실행 가능하도록 설정
+  push:
+    branches:
+      - main
 
 jobs:
   build:
