@@ -102,7 +102,7 @@ def scan_page_for_targets(token, page_id):
         "Notion-Version": "2022-06-28"
     }
     
-    found_blocks = {"age": None, "season": None}
+    found_blocks = {"age": {"id": None, "type": None}, "season": {"id": None, "type": None}}
     
     # BFS 방식으로 탐색 (Queue)
     queue = [page_id] # 시작은 페이지 아이디
@@ -145,20 +145,20 @@ def scan_page_for_targets(token, page_id):
                     # 시그니처 매칭
                     # Age Block: "D+" 혹은 "해", "개월" 등이 포함된 수식
                     # Also check for LaTeX structure if text is messed up
-                    if ("D+" in full_content or "\\huge" in full_content) and found_blocks["age"] is None:
-                        print(f"Found Age Block: {b_id}")
-                        found_blocks["age"] = b_id
+                    if ("D+" in full_content or "\\huge" in full_content) and found_blocks["age"]["id"] is None:
+                        print(f"Found Age Block: {b_id} ({b_type})")
+                        found_blocks["age"] = {"id": b_id, "type": b_type}
                         
                     # Season Block: "함께하는" or "함께한"
-                    if ("함께하는" in full_content or "함께한" in full_content) and found_blocks["season"] is None:
-                        print(f"Found Season Block: {b_id}")
-                        found_blocks["season"] = b_id
+                    if ("함께하는" in full_content or "함께한" in full_content) and found_blocks["season"]["id"] is None:
+                        print(f"Found Season Block: {b_id} ({b_type})")
+                        found_blocks["season"] = {"id": b_id, "type": b_type}
                 
                 # 더 깊이 탐색할 블록들 큐에 추가
                 if block.get("has_children"):
                     queue.append(b_id)
                     
-            if found_blocks["age"] and found_blocks["season"]:
+            if found_blocks["age"]["id"] and found_blocks["season"]["id"]:
                 break
                 
         except Exception as e:
@@ -469,20 +469,20 @@ def main():
     print("Scanning page for target blocks (Smart Find)...")
     targets = scan_page_for_targets(token, page_id)
     
-    age_block_id = targets["age"]
-    season_block_id = targets["season"]
+    age_info = targets["age"]
+    season_info = targets["season"]
     
-    if not age_block_id or not season_block_id:
-        print(f"Could not find targets. Age: {age_block_id}, Season: {season_block_id}")
+    if not age_info["id"] or not season_info["id"]:
+        print(f"Could not find targets. Age: {age_info}, Season: {season_info}")
         return
 
     # Update Blocks
     age_rich_text = get_age_rich_text(years, months, days, total_days)
-    if update_notion_block_content(token, age_block_id, age_rich_text, "paragraph"):
+    if update_notion_block_content(token, age_info["id"], age_rich_text, age_info["type"]):
         print("Updated Age Block successfully.")
         
     season_rich_text = get_season_rich_text(birth_date_obj, pet_name)
-    if update_notion_block_content(token, season_block_id, season_rich_text, "paragraph"):
+    if update_notion_block_content(token, season_info["id"], season_rich_text, season_info["type"]):
         print("Updated Season Block successfully.")
 
 if __name__ == "__main__":
