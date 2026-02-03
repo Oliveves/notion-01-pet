@@ -76,54 +76,43 @@ def parse_data(raw_data):
         props = page.get("properties", {})
         page_id = page.get("id").replace("-", "")
         
-        # Get DATE
-        date_prop = props.get("날짜") # Try '날짜' first
-        if not date_prop:
-            date_prop = props.get("Date") # Try 'Date'
-            
-        if not date_prop or date_prop["type"] != "date" or not date_prop["date"]:
-            continue
-            
-        start_date = date_prop["date"]["start"] # YYYY-MM-DD
+        # 1. Smart Date Discovery
+        date_str = None
         
-        
-        # Find Title Property
-        title_candidates = ["이름", "Name", "Problem", "제목"]
-        title_list = []
-        for key in title_candidates:
-            if key in props and props[key].get("type") == "title":
-                title_list = props[key].get("title", [])
+        # Priority A: Look for type "date"
+        for key, val in props.items():
+            if val.get("type") == "date":
+                date_obj = val.get("date")
+                if date_obj:
+                    date_str = date_obj.get("start")
                 break
         
-        display_text = "Entry"
-        if title_list:
-            display_text = title_list[0].get("plain_text", "Entry")
-
-        if start_date not in calendar_data:
-            calendar_data[start_date] = []
-            
-        calendar_data[start_date].append({
-            "id": page_id,
-            "display": display_text
-        })
-        
-    return calendar_data
-        for key in title_candidates:
-            if key in props and props[key].get("type") == "title":
-                title_list = props[key].get("title", [])
-                break
-        
-        # Fallback if no specific title found, try any title type
-        if not title_list:
+        # Priority B: Look for "created_time" (system property is root level, but sometimes aliases exist)
+        # Actually page["created_time"] is always available at root.
+        if not date_str:
+            # Check if user wants to use Created Time property
             for key, val in props.items():
-                if val.get("type") == "title":
-                    title_list = val.get("title", [])
+                if val.get("type") == "created_time":
+                    date_str = val.get("created_time")
                     break
-                    
-        title = "".join([t.get("plain_text", "") for t in title_list])
-        if not title: title = "Untitled"
+
+        # Priority C: Fallback to Page Created Time if absolutely no date property found
+        if not date_str:
+            date_str = page.get("created_time")
+
+        if not date_str: continue 
+        date_str = date_str[:10] # YYYY-MM-DD
         
-        # Icon?
+        # 2. Smart Title Discovery
+        title = "Untitled"
+        for key, val in props.items():
+            if val.get("type") == "title":
+                title_list = val.get("title", [])
+                if title_list:
+                    title = "".join([t.get("plain_text", "") for t in title_list])
+                break
+                
+        # 3. Icon
         icon = page.get("icon", {})
         emoji = icon.get("emoji") if icon and icon.get("type") == "emoji" else "📝"
         
