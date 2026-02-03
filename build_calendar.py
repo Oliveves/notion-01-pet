@@ -66,7 +66,7 @@ def find_health_log_id(token):
     except Exception as e:
         print(f"Error searching for DB: {e}")
         
-    return "2f50d907-031e-800a-82db-e4ca63b42e6e" # Fallback to hardcoded
+    return None
 
 def parse_data(raw_data):
     # Map "YYYY-MM-DD" -> List of entries (dicts)
@@ -76,38 +76,43 @@ def parse_data(raw_data):
         props = page.get("properties", {})
         page_id = page.get("id").replace("-", "")
         
-        # Find Date Property
-        date_candidates = ["날짜", "Date", "증상 발견 일시"]
-        date_prop = None
-        for key in date_candidates:
-            if key in props:
-                date_prop = props[key].get("date")
-                if date_prop: break
+        # 1. Smart Date Discovery
+        date_str = None
         
-        if not date_prop: continue
-        date_str = date_prop.get("start")
-        if not date_str: continue
-        date_str = date_str[:10] # YYYY-MM-DD
-        
-        # Find Title Property
-        title_candidates = ["이름", "Name", "Problem", "제목"]
-        title_list = []
-        for key in title_candidates:
-            if key in props and props[key].get("type") == "title":
-                title_list = props[key].get("title", [])
+        # Priority A: Look for type "date"
+        for key, val in props.items():
+            if val.get("type") == "date":
+                date_obj = val.get("date")
+                if date_obj:
+                    date_str = date_obj.get("start")
                 break
         
-        # Fallback if no specific title found, try any title type
-        if not title_list:
+        # Priority B: Look for "created_time" (system property is root level, but sometimes aliases exist)
+        # Actually page["created_time"] is always available at root.
+        if not date_str:
+            # Check if user wants to use Created Time property
             for key, val in props.items():
-                if val.get("type") == "title":
-                    title_list = val.get("title", [])
+                if val.get("type") == "created_time":
+                    date_str = val.get("created_time")
                     break
-                    
-        title = "".join([t.get("plain_text", "") for t in title_list])
-        if not title: title = "Untitled"
+
+        # Priority C: Fallback to Page Created Time if absolutely no date property found
+        if not date_str:
+            date_str = page.get("created_time")
+
+        if not date_str: continue 
+        date_str = date_str[:10] # YYYY-MM-DD
         
-        # Icon?
+        # 2. Smart Title Discovery
+        title = "Untitled"
+        for key, val in props.items():
+            if val.get("type") == "title":
+                title_list = val.get("title", [])
+                if title_list:
+                    title = "".join([t.get("plain_text", "") for t in title_list])
+                break
+                
+        # 3. Icon
         icon = page.get("icon", {})
         emoji = icon.get("emoji") if icon and icon.get("type") == "emoji" else "📝"
         
@@ -183,6 +188,7 @@ def generate_interactive_html(calendar_data, error_message=None):
                 text-align: left;
                 color: { 'red' if error_message else 'inherit' }; /* Highlight error */
             }}
+            /* v2.1 Debug Probe */
             
             .nav-btn {{
                 background: none;
@@ -328,7 +334,14 @@ def generate_interactive_html(calendar_data, error_message=None):
                 const month = currentDate.getMonth(); // 0-11
                 
                 // Update Header if no error
-                if (!document.getElementById('monthLabel').innerText.startsWith("Error") && !document.getElementById('monthLabel').innerText.startsWith("Token")) {{
+                const currentTitle = document.getElementById('monthLabel').innerText;
+                const isError = currentTitle.startsWith("Error") || 
+                                currentTitle.startsWith("Token") || 
+                                currentTitle.startsWith("Keys") || 
+                                currentTitle.startsWith("No Data") ||
+                                currentTitle.startsWith("Fetch");
+                                
+                if (!isError) {{
                      const monthName = monthNames[month];
                      document.getElementById('monthLabel').innerText = `${{year}} ${{monthName}}`;
                 }}
@@ -439,22 +452,34 @@ def main():
     else:
         # Dynamically find Health Log ID
         db_id = find_health_log_id(token)
-        print(f"Using Database ID: {db_id}")
         
-        print("Fetching Notion data...")
-        try:
-            raw_data = fetch_health_log(token, db_id)
-            print(f"Fetched {len(raw_data)} entries.")
-            if not raw_data:
-                # If no data failure, but also no entries, usually just means empty DB.
-                # But to communicate connectivity to user:
-                pass 
-        except Exception as e:
-            print(f"Error executing fetch: {e}")
-            error_msg = f"Fetch Error: {str(e)[:20]}..."
+        if not db_id:
+            print("ERROR: 'Health Log' database not found.")
+            error_msg = "Health Log DB Not Found"
+        else:
+            print(f"Using Database ID: {db_id}")
+            print("Fetching Notion data...")
+            try:
+                raw_data = fetch_health_log(token, db_id)
+                print(f"Fetched {len(raw_data)} entries.")
+                if not raw_data:
+                     print("DEBUG: Database is empty or no permissions to view children.")
+                     error_msg = "No Data Found (Empty DB)"
+                
+            except Exception as e:
+                print(f"Error executing fetch: {e}")
+                error_msg = f"Fetch Error: {str(e)[:20]}..."
 
     print("Parsing data...")
     calendar_data = parse_data(raw_data)
+    
+    # DEBUG: If raw data exists but calendar is empty, it's a parsing issue.
+    # Show the available keys to the user.
+    if not error_msg and raw_data and not calendar_data:
+        first_props = raw_data[0].get("properties", {}).keys()
+        props_str = ", ".join(first_props)
+        print(f"DEBUG: Parse failed. Available keys: {props_str}")
+        error_msg = f"Keys: {props_str[:50]}..." # Truncate for header
     
     print("Generating HTML...")
     html_content = generate_interactive_html(calendar_data, error_msg)

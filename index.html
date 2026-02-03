@@ -49,6 +49,7 @@
                 text-align: left;
                 color: inherit; /* Highlight error */
             }
+            /* v2.1 Debug Probe */
             
             .nav-btn {
                 background: none;
@@ -183,7 +184,7 @@
         </div>
 
         <script>
-            const eventData = {};
+            const eventData = {"2026-01-24": [{"id": "2f50d907031e80d6a18ccf54c09ef511", "title": "\uc124\uc0ac + \ub9ce\uc740 \uc591\uc758 \ud1a0", "emoji": "\ud83d\udcdd", "display": "\ud83d\udcdd \uc124\uc0ac + \ub9ce\uc740 \uc591\uc758 \ud1a0"}], "2026-01-27": [{"id": "2f50d907031e80dea79dd8546d59d21f", "title": "\ubcd1\uc6d0\ubc29\ubb38DB", "emoji": "\ud83d\udcdd", "display": "\ud83d\udcdd \ubcd1\uc6d0\ubc29\ubb38DB"}], "2026-01-28": [{"id": "2f70d907031e804e964cc841ceea5345", "title": "\uc544\uc9c1 \uc751\uc544\uac00 \ubb3d\uc74c", "emoji": "\ud83d\udcdd", "display": "\ud83d\udcdd \uc544\uc9c1 \uc751\uc544\uac00 \ubb3d\uc74c"}], "2026-02-01": [{"id": "2f90d907031e8076aae4cf7188e173df", "title": "\uc5ec\uc804\ud788 \uc124\uc0ac \uc751\uc544 \uc0c1\ud0dc", "emoji": "\ud83d\udcdd", "display": "\ud83d\udcdd \uc5ec\uc804\ud788 \uc124\uc0ac \uc751\uc544 \uc0c1\ud0dc"}]};
             let currentDate = new Date(); // Defaults to today on client side
 
             const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -194,7 +195,14 @@
                 const month = currentDate.getMonth(); // 0-11
                 
                 // Update Header if no error
-                if (!document.getElementById('monthLabel').innerText.startsWith("Error") && !document.getElementById('monthLabel').innerText.startsWith("Token")) {
+                const currentTitle = document.getElementById('monthLabel').innerText;
+                const isError = currentTitle.startsWith("Error") || 
+                                currentTitle.startsWith("Token") || 
+                                currentTitle.startsWith("Keys") || 
+                                currentTitle.startsWith("No Data") ||
+                                currentTitle.startsWith("Fetch");
+                                
+                if (!isError) {
                      const monthName = monthNames[month];
                      document.getElementById('monthLabel').innerText = `${year} ${monthName}`;
                 }
